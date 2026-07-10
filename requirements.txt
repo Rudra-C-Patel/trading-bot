@@ -1,0 +1,12 @@
+# Morgan Tradez -- pinned to the versions this bot was built and tested on
+# (Python 3.11, July 2026). NOTE: the original pandas-ta is unmaintained and
+# breaks on NumPy 2.x, so this project uses the maintained `ta` library.
+yfinance==1.5.1
+pandas==3.0.3
+numpy==2.4.6
+ta==0.11.0
+requests==2.34.2
+lxml==6.1.1
+# Wheel bot (IBKR TWS paper). ib_insync is unmaintained (author died 2024);
+# ib_async is the maintained community fork with the same API.
+ib_async==2.1.0

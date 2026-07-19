@@ -73,11 +73,13 @@ All thresholds live at the top of `strategy.py` as named constants.
 | `walkforward.py` | Walk-forward validation of the RS cutoff (see `WALKFORWARD_RESULTS.md`) |
 | `paper_trader.py` | Stateful paper trading engine (JSON state, CSV log) |
 | `telegram_alerts.py` | Morning scan → Telegram message |
-| `config.py` | Wheel strategy thresholds + watchlist/blacklist (paper-only enforced) |
-| `wheel_bot.py` | Wheel bot: IBKR TWS **paper** engine + pure decision logic |
+| `config.py` | Wheel strategy thresholds + watchlist/blacklist + broker flag (paper-only enforced) |
+| `wheel_bot.py` | Wheel bot: pure decision logic + broker layer (IBKR TWS **paper** default) |
+| `alpaca_broker.py` | Alpaca **paper** adapter (same broker interface; select with `WHEEL_BROKER=alpaca`) |
 | `wheel_backtest.py` | Wheel backtest (Black-Scholes approximation — see honesty section) |
 | `risk_manager.py` | Shared risk layer: one combined ceiling, ticker exclusivity, per-strategy P&L |
-| `tests/` | pytest suite for wheel logic + risk layer (`python -m pytest tests/`) |
+| `bot/` | Multi-instrument suite (added 2026-07-13): `data.py` Alpaca history, `engine.py` sizing/stops/breaker, `strategies/` (mean reversion, breakout, trend), `walkforward.py`, `suite_bot.py` paper runner |
+| `tests/` | pytest suite for wheel logic + risk layer + suite (`python -m pytest tests/`) |
 | `requirements.txt` | Pinned dependencies (Python 3.11) |
 | `data/` | Caches, state, logs (created on first run) |
 
@@ -277,9 +279,29 @@ looks too good.
 ## Wheel strategy bot (second strategy, added 2026-07-10)
 
 `wheel_bot.py` + `config.py` + `wheel_backtest.py` implement a wheel
-(cash-secured puts → assignment → covered calls) against **IBKR TWS
-paper trading only** (port 7497; live ports and non-`DU*` accounts are
-hard-refused in `connect_paper()`).
+(cash-secured puts → assignment → covered calls) against **paper
+trading only**, on either of two brokers behind one interface
+(`connect`, `equity`, `stock_positions`, `spot`, `expirations`,
+`pick_by_delta`, `quote`, `place_limit`, `order_status`):
+
+- **IBKR TWS paper** (default) — port 7497; live ports and non-`DU*`
+  accounts are hard-refused in `connect_paper()`.
+- **Alpaca paper** (`WHEEL_BROKER=alpaca`, added 2026-07-12) —
+  `alpaca_broker.py`, raw REST with the already-pinned `requests` (no
+  SDK). Credentials in a git-ignored `.env` (`ALPACA_API_KEY` /
+  `ALPACA_SECRET_KEY` / `ALPACA_BASE_URL`). Hard-refuses any host other
+  than `paper-api.alpaca.markets`, account numbers not starting with
+  `PA`, and options trading level below 1 (covered calls / CSPs).
+  Market data uses the free tiers: `iex` stock feed, `indicative`
+  options feed (quotes + greeks for the delta targeting). Note the 5%
+  spread filter rejects most quotes while the market is closed —
+  indicative weekend/overnight spreads are wide; scan results are only
+  meaningful during market hours. `python alpaca_broker.py` prints a
+  connect-and-verify account report (never places orders).
+
+The backend is chosen by `config.BROKER`, overridable per-run with the
+`WHEEL_BROKER` env var (`ibkr` | `alpaca`); unset means IBKR. Decision
+logic is broker-independent — the same rules run against either.
 
 Mechanics from the setup doc: 21 EMA wick+close entry signal (bar wicks
 below a rising daily 21 EMA and closes above it, in an uptrend), sell a
@@ -297,10 +319,12 @@ below cost basis (the bot stops selling calls below basis on flagged
 names).
 
 ```bash
-python wheel_bot.py scan               # signal check (no TWS needed)
-python wheel_bot.py update --dry-run   # decide everything, place nothing
-python wheel_bot.py update             # trade via TWS paper (must be running)
-python wheel_backtest.py               # BS-approximation backtest
+python wheel_bot.py scan                             # signal check (no broker needed)
+python wheel_bot.py update --dry-run                 # decide everything, place nothing
+python wheel_bot.py update                           # trade via TWS paper (must be running)
+WHEEL_BROKER=alpaca python wheel_bot.py update       # same, via Alpaca paper (.env keys)
+python alpaca_broker.py                              # Alpaca account/options-level report
+python wheel_backtest.py                             # BS-approximation backtest
 ```
 
 ### Wheel backtest honesty (read before quoting any number)
@@ -320,6 +344,44 @@ The live liquidity filter (bid-ask spread) cannot be simulated at all
 Sharpe 0.50, 100 CSPs, 29 assignments, 8 manual-review flags — i.e.
 roughly T-bill-grade returns with equity-grade drawdowns under these
 assumptions. Full report: `data/wheel_backtest_report.txt`.
+
+## Multi-instrument suite (third strategy set, added 2026-07-13)
+
+`bot/` implements three intraday/swing strategies over five instruments
+against the same Alpaca paper account and `alpaca_broker.py` adapter
+(same paper-only hard guards):
+
+- **Mean reversion** — SPY/QQQ, 15-min bars, 20-period SMA/stddev
+  z-score entry (1.5/1.8), exit at the mean, 2 ATR hard stop.
+- **Momentum breakout** — BTC/USD, 1-hour bars, 20-period high breakout
+  with 1.5x volume confirmation, 2x ATR trailing stop, long-only.
+- **Trend following** — GLD/USO, session-anchored 4-hour bars, 50/200
+  EMA cross, 3x ATR trailing stop, long-only.
+
+Shared risk rules: 1 ATR move = 1% of equity sizing (notional capped at
+1x equity — the cap binds on 15-min index ETFs); broker-side GTC hard
+stop placed at entry, **never moved**; trailing stops only tighten; the
+`risk_manager.py` combined 5% ceiling + ticker exclusivity applies
+across ALL strategies including the wheel; no new BTC long while SPY
+and QQQ are both long (correlation filter); a 10% drawdown from peak
+equity closes every suite position and halts until a deliberate
+`reset-halt`. Trades log to `data/trades.csv`, daily P&L to
+`data/daily_pnl.csv`.
+
+```bash
+python -m bot.suite_bot scan               # signals only, no broker
+python -m bot.suite_bot update --dry-run   # decide everything, place nothing
+python -m bot.suite_bot update             # trade enabled instruments (Alpaca paper)
+python -m bot.walkforward                  # per-instrument walk-forward validation
+```
+
+**Validation result (2026-07-13): all five instrument/strategy pairs
+failed walk-forward — zero out-of-sample edge, confirmed robust to a
+zero-cost re-run. Nothing is enabled for paper trading (`ENABLED = []`
+in `bot/suite_bot.py`); the suite is parked infrastructure until a new
+pre-registered hypothesis earns its way in.** Full protocol, per-fold
+tables and post-mortem: the suite section of
+[`WALKFORWARD_RESULTS.md`](WALKFORWARD_RESULTS.md).
 
 ## Paper → live checklist (deliberately not implemented)
 

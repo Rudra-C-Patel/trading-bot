@@ -131,6 +131,33 @@ def load_price_data(tickers: list[str], start: str, end: str,
     return frames
 
 
+def load_spy_regime(start: str, end: str, cache_dir: str = DATA_DIR) -> pd.Series:
+    """Daily bool: was SPY above its own 200-day SMA at the PRIOR close?
+
+    Used as an optional entry gate (--spy-filter). Evaluated at the prior
+    close so the gate uses no same-day information: an intraday breakout
+    entry cannot know where SPY will close tonight.
+    """
+    os.makedirs(cache_dir, exist_ok=True)
+    cache_file = os.path.join(cache_dir, f"spy_{start}_{end}.pkl")
+    if os.path.exists(cache_file):
+        with open(cache_file, "rb") as f:
+            spy = pickle.load(f)
+    else:
+        dl_start = (pd.Timestamp(start) - pd.Timedelta(days=WARMUP_DAYS)).strftime("%Y-%m-%d")
+        spy = yf.download("SPY", start=dl_start, end=end, interval="1d",
+                          auto_adjust=True, progress=False)
+        if spy is None or spy.empty:
+            raise RuntimeError("SPY download failed; cannot build the regime gate")
+        if isinstance(spy.columns, pd.MultiIndex):
+            spy.columns = spy.columns.get_level_values(0)
+        with open(cache_file, "wb") as f:
+            pickle.dump(spy, f)
+    close = spy["Close"].dropna()
+    sma200 = close.rolling(200).mean()
+    return (close > sma200).shift(1).fillna(False).astype(bool)
+
+
 def precompute(frames: dict[str, pd.DataFrame]) -> tuple[dict[str, pd.DataFrame], pd.DataFrame]:
     """Indicator frames per ticker + a dates-x-tickers RS score matrix."""
     enriched, scores = {}, {}
@@ -182,7 +209,7 @@ class WatchItem:
 class Backtest:
     def __init__(self, enriched: dict[str, pd.DataFrame], rs_pct: pd.DataFrame,
                  start: str, end: str, capital: float, max_positions: int,
-                 top_pct: float):
+                 top_pct: float, regime: pd.Series | None = None):
         self.enriched = enriched
         self.rs_pct = rs_pct
         self.capital0 = capital
@@ -198,6 +225,13 @@ class Backtest:
                      for t, df in enriched.items()}
         cal = rs_pct.index
         self.days = cal[(cal >= pd.Timestamp(start)) & (cal <= pd.Timestamp(end))]
+        # optional entry gate: bool per session (already prior-close-shifted
+        # by load_spy_regime); None = gate disabled, behavior unchanged
+        if regime is not None:
+            self.regime = regime.sort_index().reindex(
+                self.days, method="ffill").fillna(False).astype(bool)
+        else:
+            self.regime = None
 
     # -- helpers ------------------------------------------------------------
     def _bar(self, ticker: str, date: pd.Timestamp):
@@ -277,11 +311,16 @@ class Backtest:
                 del self.positions[t]
 
     def process_entries(self, date: pd.Timestamp):
+        # regime gate (optional): entries may not fire while SPY sat below its
+        # 200-day SMA at the prior close; setups still age and expire normally
+        regime_ok = self.regime is None or bool(self.regime.loc[date])
         for t in list(self.watchlist):
             item = self.watchlist[t]
             item.age += 1
             if item.age > WATCHLIST_TTL:
                 del self.watchlist[t]
+                continue
+            if not regime_ok:
                 continue
             if t in self.positions or len(self.positions) >= self.max_positions:
                 continue
@@ -510,6 +549,9 @@ def main():
                    help="all US common stocks (default) or S&P 500 + NDX only")
     p.add_argument("--universe-limit", type=int, default=0,
                    help="cap universe size for a quick smoke test")
+    p.add_argument("--spy-filter", action="store_true",
+                   help="entries only fire when SPY closed above its 200-day "
+                        "SMA the prior session (regime gate)")
     args = p.parse_args()
 
     universe = get_universe(source=args.universe)
@@ -520,9 +562,10 @@ def main():
     frames = load_price_data(universe, args.start, args.end)
     print(f"Usable tickers: {len(frames)}. Precomputing indicators + RS ranks...")
     enriched, rs_pct = precompute(frames)
+    regime = load_spy_regime(args.start, args.end) if args.spy_filter else None
 
     bt = Backtest(enriched, rs_pct, args.start, args.end, args.capital,
-                  args.max_positions, args.top_pct)
+                  args.max_positions, args.top_pct, regime=regime)
     print(f"Simulating {len(bt.days)} sessions...")
     equity = bt.run()
 

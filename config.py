@@ -13,6 +13,17 @@ practice.
 """
 
 # ---------------------------------------------------------------------------
+# Broker selection (PAPER ONLY on either backend)
+# ---------------------------------------------------------------------------
+# "ibkr" (default): TWS/Gateway paper via ib_async, guarded below.
+# "alpaca": Alpaca paper via alpaca_broker.py, guarded there (host must be
+# paper-api.alpaca.markets, account number must start with "PA").
+# Override per-run without editing this file:  WHEEL_BROKER=alpaca ...
+import os
+
+BROKER = os.environ.get("WHEEL_BROKER", "ibkr")
+
+# ---------------------------------------------------------------------------
 # IBKR connection (PAPER ONLY)
 # ---------------------------------------------------------------------------
 IB_HOST = "127.0.0.1"
@@ -37,6 +48,11 @@ TREND_SMA = 50                  # signal only counts in an uptrend: close > 50 S
 # ---------------------------------------------------------------------------
 CSP_TARGET_DELTA = 0.30         # cash-secured put: sell ~0.30 delta
 CC_TARGET_DELTA = 0.20          # covered call after assignment: sell ~0.20 delta
+MAX_DELTA_DISTANCE = 0.08       # reject the pick if its |delta| lands further
+                                # than this from target (live 2026-07-18: the
+                                # closest spread-passing strike was sometimes
+                                # 0.41-0.46 delta -- near-ATM assignment risk
+                                # a "~0.30 delta" strategy never intended)
 TARGET_DTE = 30                 # aim ~30 days to expiration
 DTE_TOLERANCE = 12              # accept listed expiries within TARGET_DTE +/- this
 CONTRACT_MULTIPLIER = 100

@@ -1,4 +1,5 @@
-"""Shared risk layer for both strategies (momentum + wheel). Paper only.
+"""Shared risk layer for all strategies (momentum, wheel, and the
+multi-instrument suite: meanrev / breakout / trend). Paper only.
 
 Three jobs, per the design brief:
 
@@ -22,6 +23,8 @@ Risk definitions (what "risk dollars" means per strategy):
               also make the two strategies incomparable; the review
               trigger is where the bot stops acting mechanically, so it
               is the honest working stop-equivalent.
+  * suite (meanrev/breakout/trend): qty x |entry - hard stop| -- the
+              1R hard-stop distance, same definition as momentum.
 
 State lives in data/risk_state.json guarded by a lock file so the two
 bots' cron jobs cannot race each other.
@@ -37,8 +40,8 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 RISK_STATE = os.path.join(DATA_DIR, "risk_state.json")
 LOCK_FILE = RISK_STATE + ".lock"
 
-MAX_TOTAL_OPEN_RISK_PCT = 0.05     # combined open risk across BOTH strategies
-STRATEGIES = ("momentum", "wheel")
+MAX_TOTAL_OPEN_RISK_PCT = 0.05     # combined open risk across ALL strategies
+STRATEGIES = ("momentum", "wheel", "meanrev", "breakout", "trend")
 LOCK_TIMEOUT_S = 10.0
 
 

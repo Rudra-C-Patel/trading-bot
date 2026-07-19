@@ -7,18 +7,26 @@ liquidity + volatility filters, credit-only rolls, drawdown review
 flags) lives in config.py and decide_* below -- these are ADDITIONS the
 original setup doc did not include.
 
-Layout: everything above the "IBKR layer" marker is pure logic shared
+Layout: everything above the "Broker layer" marker is pure logic shared
 with wheel_backtest.py and the test suite; ib_async is imported lazily
 so those imports never require TWS or the package.
 
-Usage (TWS paper session must be running on config.IB_PORT):
-    python wheel_bot.py scan               # signal check on the watchlist (no IB needed)
-    python wheel_bot.py update             # manage positions + open new ones via TWS
+Broker backends (config.BROKER / WHEEL_BROKER env, default "ibkr"):
+IBKRBroker below wraps the original ib_async layer; AlpacaBroker in
+alpaca_broker.py speaks the same interface (connect, equity,
+stock_positions, spot, expirations, pick_by_delta, quote, place_limit,
+order_status, disconnect) against Alpaca paper.
+
+Usage (TWS paper session running, or WHEEL_BROKER=alpaca + .env keys):
+    python wheel_bot.py scan               # signal check on the watchlist (no broker needed)
+    python wheel_bot.py update             # manage positions + open new ones
     python wheel_bot.py update --dry-run   # decide everything, place no orders
     python wheel_bot.py status             # account + state snapshot
 
-THIS BOT NEVER CONNECTS TO A LIVE ACCOUNT: any port outside
-config.PAPER_PORTS or any account id not starting with "DU" aborts.
+THIS BOT NEVER CONNECTS TO A LIVE ACCOUNT: on IBKR any port outside
+config.PAPER_PORTS or any account id not starting with "DU" aborts; on
+Alpaca any host other than paper-api.alpaca.markets or any account not
+starting with "PA" aborts.
 """
 
 import argparse
@@ -26,6 +34,7 @@ import csv
 import json
 import os
 import sys
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 import numpy as np
@@ -82,6 +91,37 @@ def spread_ok(bid: float, ask: float) -> bool:
         return False
     mid = (bid + ask) / 2
     return (ask - bid) <= config.MAX_SPREAD_PCT * mid
+
+
+@dataclass
+class OptionQuote:
+    """Broker-agnostic option quote: everything the orchestration needs to
+    compare, price and book a contract. `handle` is the broker's own token
+    (ib_async Contract / OCC symbol) passed back verbatim to place_limit."""
+    ticker: str
+    expiry: str          # YYYY-MM-DD
+    strike: float
+    right: str           # "P" | "C"
+    bid: float
+    ask: float
+    delta: float | None = None
+    handle: object = None
+
+    @property
+    def mid(self) -> float:
+        return (self.bid + self.ask) / 2
+
+
+def delta_ok(delta: float | None, target_delta: float) -> bool:
+    """Delta-band guard: |delta| must land within MAX_DELTA_DISTANCE of
+    the target. A 0.42-delta put is not an acceptable stand-in for a
+    0.30 target even when it is the closest strike passing the spread
+    filter -- better no trade than near-ATM assignment risk."""
+    if delta is None or not np.isfinite(delta):
+        return False
+    # epsilon keeps the band boundary inclusive under float error
+    # (abs(0.38 - 0.30) > 0.08 in IEEE-754)
+    return abs(abs(delta) - target_delta) <= config.MAX_DELTA_DISTANCE + 1e-9
 
 
 def vol_ok(annualized_vol: float) -> bool:
@@ -240,8 +280,20 @@ def next_earnings_dates(ticker: str) -> list:
 
 
 # ===========================================================================
-# IBKR layer -- PAPER ONLY. ib_async imported lazily.
+# Broker layer -- PAPER ONLY. Two backends behind one interface:
+# IBKRBroker (ib_async, imported lazily) and alpaca_broker.AlpacaBroker.
 # ===========================================================================
+
+def get_broker():
+    """Instantiate the backend named by config.BROKER (default 'ibkr')."""
+    if config.BROKER == "alpaca":
+        from alpaca_broker import AlpacaBroker
+        return AlpacaBroker()
+    if config.BROKER != "ibkr":
+        sys.exit(f"REFUSED: unknown BROKER '{config.BROKER}' "
+                 "(expected 'ibkr' or 'alpaca')")
+    return IBKRBroker()
+
 
 def connect_paper():
     """Connect to TWS/Gateway and hard-verify it is a paper session."""
@@ -314,6 +366,16 @@ def pick_contract_by_delta(ib, ticker: str, expiry: str, spot: float,
         gap = abs(abs(g.delta) - target_delta)
         if best_gap is None or gap < best_gap:
             best, best_td, best_gap = c, td, gap
+    # Delta-band guard: the closest spread-passing strike can still sit far
+    # from target when nothing near it quotes tight enough. Refuse it.
+    if best is not None and not delta_ok(best_td.modelGreeks.delta,
+                                         target_delta):
+        print(f"  {ticker}: DELTA-BAND REJECT {expiry} {best.strike}{right} "
+              f"-- delta {abs(best_td.modelGreeks.delta):.3f} is the closest "
+              f"spread-passing strike but lies outside target "
+              f"{target_delta:.2f} +/- {config.MAX_DELTA_DISTANCE:.2f}; "
+              "no trade")
+        return None, None
     return best, best_td
 
 
@@ -322,39 +384,109 @@ def _stock(ticker: str):
     return Stock(ticker, "SMART", "USD")
 
 
-def sell_option(ib, contract, td, contracts_n: int, reason: str,
+class IBKRBroker:
+    """Thin adapter over the original ib_async layer above -- the functions
+    themselves are unchanged; this just gives them the shared broker shape."""
+    name = "ibkr"
+
+    def __init__(self):
+        self.ib = None
+
+    def connect(self):
+        self.ib = connect_paper()
+        return self
+
+    def disconnect(self):
+        if self.ib is not None:
+            self.ib.disconnect()
+
+    def equity(self) -> float:
+        return ib_equity(self.ib)
+
+    def stock_positions(self) -> dict[str, float]:
+        return {p.contract.symbol: p.position for p in self.ib.positions()
+                if p.contract.secType == "STK"}
+
+    def spot(self, ticker: str) -> float | None:
+        [stk] = self.ib.qualifyContracts(_stock(ticker))
+        px = self.ib.reqTickers(stk)[0].marketPrice()
+        return float(px) if px and px > 0 and np.isfinite(px) else None
+
+    def expirations(self, ticker: str) -> list[str]:
+        [stk] = self.ib.qualifyContracts(_stock(ticker))
+        chains = self.ib.reqSecDefOptParams(stk.symbol, "", stk.secType,
+                                            stk.conId)
+        chain = next((c for c in chains if c.exchange == "SMART"), None)
+        if chain is None:
+            return []
+        return sorted(str(pd.Timestamp(e).date()) for e in chain.expirations)
+
+    def pick_by_delta(self, ticker, expiry, spot, right,
+                      target_delta) -> OptionQuote | None:
+        c, td = pick_contract_by_delta(self.ib, ticker, expiry, spot, right,
+                                       target_delta)
+        if c is None:
+            return None
+        g = td.modelGreeks
+        return OptionQuote(ticker,
+                           str(pd.Timestamp(c.lastTradeDateOrContractMonth).date()),
+                           c.strike, right, td.bid, td.ask,
+                           g.delta if g else None, handle=c)
+
+    def quote(self, ticker, expiry, strike, right) -> OptionQuote | None:
+        from ib_async import Option
+        cs = self.ib.qualifyContracts(Option(
+            ticker, expiry.replace("-", ""), strike, right, "SMART"))
+        if not cs:
+            return None
+        td = self.ib.reqTickers(cs[0])[0]
+        return OptionQuote(ticker, expiry, strike, right, td.bid, td.ask,
+                           handle=cs[0])
+
+    def place_limit(self, q: OptionQuote, side: str, contracts_n: int,
+                    limit_price: float) -> str:
+        from ib_async import LimitOrder
+        trade = self.ib.placeOrder(q.handle,
+                                   LimitOrder(side, contracts_n, limit_price))
+        return str(trade.order.orderId)
+
+    def order_status(self, order_id: str) -> str:
+        for t in self.ib.trades():
+            if str(t.order.orderId) == order_id:
+                return t.orderStatus.status
+        return "unknown"
+
+
+def sell_option(broker, q: OptionQuote, contracts_n: int, reason: str,
                 dry_run: bool) -> float:
     """Place a SELL limit at the mid. Returns credit per share (mid)."""
-    from ib_async import LimitOrder
-    mid = round((td.bid + td.ask) / 2, 2)
+    mid = round(q.mid, 2)
     if not dry_run:
-        ib.placeOrder(contract, LimitOrder("SELL", contracts_n, mid))
+        broker.place_limit(q, "SELL", contracts_n, mid)
     log_trade({"timestamp": datetime.now().isoformat(timespec="seconds"),
-               "ticker": contract.symbol, "action": "SELL_TO_OPEN" if "open" in reason else "SELL",
-               "right": contract.right, "strike": contract.strike,
-               "expiry": contract.lastTradeDateOrContractMonth,
+               "ticker": q.ticker, "action": "SELL_TO_OPEN" if "open" in reason else "SELL",
+               "right": q.right, "strike": q.strike,
+               "expiry": q.expiry,
                "contracts": contracts_n, "price": mid, "reason": reason,
                "cash_impact": round(mid * contracts_n * config.CONTRACT_MULTIPLIER, 2)})
-    print(f"  {'DRY-RUN ' if dry_run else ''}SELL {contracts_n}x {contract.symbol} "
-          f"{contract.lastTradeDateOrContractMonth} {contract.strike}{contract.right} "
-          f"@ ~{mid} ({reason})")
+    print(f"  {'DRY-RUN ' if dry_run else ''}SELL {contracts_n}x {q.ticker} "
+          f"{q.expiry} {q.strike}{q.right} @ ~{mid} ({reason})")
     return mid
 
 
-def buy_to_close(ib, contract, td, contracts_n: int, reason: str,
+def buy_to_close(broker, q: OptionQuote, contracts_n: int, reason: str,
                  dry_run: bool) -> float:
-    from ib_async import LimitOrder
-    mid = round((td.bid + td.ask) / 2, 2)
+    mid = round(q.mid, 2)
     if not dry_run:
-        ib.placeOrder(contract, LimitOrder("BUY", contracts_n, mid))
+        broker.place_limit(q, "BUY", contracts_n, mid)
     log_trade({"timestamp": datetime.now().isoformat(timespec="seconds"),
-               "ticker": contract.symbol, "action": "BUY_TO_CLOSE",
-               "right": contract.right, "strike": contract.strike,
-               "expiry": contract.lastTradeDateOrContractMonth,
+               "ticker": q.ticker, "action": "BUY_TO_CLOSE",
+               "right": q.right, "strike": q.strike,
+               "expiry": q.expiry,
                "contracts": contracts_n, "price": mid, "reason": reason,
                "cash_impact": round(-mid * contracts_n * config.CONTRACT_MULTIPLIER, 2)})
     print(f"  {'DRY-RUN ' if dry_run else ''}BUY-TO-CLOSE {contracts_n}x "
-          f"{contract.symbol} {contract.strike}{contract.right} @ ~{mid} ({reason})")
+          f"{q.ticker} {q.strike}{q.right} @ ~{mid} ({reason})")
     return mid
 
 
@@ -388,15 +520,16 @@ def cmd_scan(args):
 
 
 def cmd_update(args):
-    """Manage open wheel positions and open new CSPs via TWS paper."""
+    """Manage open wheel positions and open new CSPs via the paper broker."""
     state = load_state()
-    ib = connect_paper()
+    broker = get_broker()
+    broker.connect()
     try:
-        equity = ib_equity(ib)
-        print(f"Paper account equity: ${equity:,.0f}")
+        equity = broker.equity()
+        print(f"Paper account equity: ${equity:,.0f}  (broker: {broker.name})")
         today = pd.Timestamp(datetime.now().date())
 
-        _reconcile_assignments(ib, state)
+        _reconcile_assignments(broker, state)
 
         # -- manage short puts ------------------------------------------------
         for t in list(state["short_puts"]):
@@ -415,7 +548,7 @@ def cmd_update(args):
                 RM.release("wheel", t, realized_pnl=pnl)
                 continue
             if decide_put_action(spot, p["strike"], dte) == "manage":
-                _roll_or_assign_put(ib, state, t, p, spot, args.dry_run)
+                _roll_or_assign_put(broker, state, t, p, spot, args.dry_run)
 
         # -- manage covered calls / assigned stock ----------------------------
         for t in list(state["stock"]):
@@ -441,29 +574,29 @@ def cmd_update(args):
                     print(f"  {t}: CC {call['strike']} likely assigned above "
                           f"basis {s['basis']:.2f} -- letting it be called away")
                 elif action == "try_roll":
-                    _roll_call_up_out(ib, state, t, call, s, spot, args.dry_run)
+                    _roll_call_up_out(broker, state, t, call, s, spot,
+                                      args.dry_run)
             else:
-                _open_covered_call(ib, state, t, s, spot, args.dry_run)
+                _open_covered_call(broker, state, t, s, spot, args.dry_run)
 
         # -- open new CSPs from scan candidates --------------------------------
         cand = state.get("candidates", {}).get("tickers", [])
         for t in cand:
             if t in active_tickers(state):
                 continue
-            _open_csp(ib, state, t, equity, args.dry_run)
+            _open_csp(broker, state, t, equity, args.dry_run)
 
         save_state(state)
         print(f"State saved. Active: {list(active_tickers(state)) or 'none'}  "
               f"review flags: {list(state['review_flags']) or 'none'}")
     finally:
-        ib.disconnect()
+        broker.disconnect()
 
 
-def _reconcile_assignments(ib, state):
+def _reconcile_assignments(broker, state):
     """Detect stock that appeared via assignment (or vanished via call-away)
-    by comparing IB positions to state."""
-    ib_stock = {p.contract.symbol: p.position for p in ib.positions()
-                if p.contract.secType == "STK"}
+    by comparing broker positions to state."""
+    ib_stock = broker.stock_positions()
     for t in list(state["short_puts"]):
         p = state["short_puts"][t]
         if ib_stock.get(t, 0) >= p["contracts"] * config.CONTRACT_MULTIPLIER \
@@ -489,133 +622,111 @@ def _reconcile_assignments(ib, state):
             RM.release("wheel", t, realized_pnl=pnl)
 
 
-def _open_csp(ib, state, ticker, equity, dry_run):
+def _open_csp(broker, state, ticker, equity, dry_run):
     earnings = next_earnings_dates(ticker) if config.AVOID_EARNINGS else []
-    [stk] = ib.qualifyContracts(_stock(ticker))
-    spot_td = ib.reqTickers(stk)[0]
-    spot = spot_td.marketPrice()
+    spot = broker.spot(ticker)
     if not spot or spot <= 0 or not np.isfinite(spot):
         print(f"  {ticker}: no usable spot price; skipping")
         return
-    chains = ib.reqSecDefOptParams(stk.symbol, "", stk.secType, stk.conId)
-    chain = next((c for c in chains if c.exchange == "SMART"), None)
-    if chain is None:
-        print(f"  {ticker}: no SMART option chain; skipping")
+    expirations = broker.expirations(ticker)
+    if not expirations:
+        print(f"  {ticker}: no option chain; skipping")
         return
-    expiry = pick_expiry(sorted(chain.expirations))
+    expiry = pick_expiry(expirations)
     if expiry is None:
         print(f"  {ticker}: no expiry near {config.TARGET_DTE} DTE; skipping")
         return
     if config.AVOID_EARNINGS and expiry_crosses_earnings(expiry, earnings):
         print(f"  {ticker}: expiry {expiry} crosses earnings; skipping")
         return
-    contract, td = pick_contract_by_delta(ib, ticker, expiry, spot, "P",
-                                          config.CSP_TARGET_DELTA)
-    if contract is None:
+    q = broker.pick_by_delta(ticker, expiry, spot, "P",
+                             config.CSP_TARGET_DELTA)
+    if q is None:
         print(f"  {ticker}: no liquid strike near {config.CSP_TARGET_DELTA} "
-              "delta (spread/greeks filters); skipping")
+              "delta (spread/greeks/delta-band filters); skipping")
         return
-    n = max_new_contracts(equity, contract.strike,
+    n = max_new_contracts(equity, q.strike,
                           len(active_tickers(state)))
     if n <= 0:
         print(f"  {ticker}: concentration cap leaves no room "
-              f"(strike {contract.strike}); skipping")
+              f"(strike {q.strike}); skipping")
         return
     # shared risk layer: risk = loss at the manual-review trigger
-    risk = config.REVIEW_DRAWDOWN_PCT * contract.strike \
+    risk = config.REVIEW_DRAWDOWN_PCT * q.strike \
         * config.CONTRACT_MULTIPLIER * n
     check = RM.can_reserve if dry_run else RM.reserve
     ok, why = check("wheel", ticker, risk, equity)
     if not ok:
         print(f"  RISK BLOCKED {ticker}: {why}")
         return
-    credit = sell_option(ib, contract, td, n, "open_csp", dry_run)
+    credit = sell_option(broker, q, n, "open_csp", dry_run)
     if not dry_run:
         state["short_puts"][ticker] = {
-            "strike": contract.strike, "expiry": str(pd.Timestamp(
-                contract.lastTradeDateOrContractMonth).date()),
+            "strike": q.strike, "expiry": q.expiry,
             "contracts": n, "credit": credit,
             "opened": datetime.now().strftime("%Y-%m-%d")}
 
 
-def _roll_or_assign_put(ib, state, ticker, p, spot, dry_run):
+def _roll_or_assign_put(broker, state, ticker, p, spot, dry_run):
     """Near-expiry ITM-ish short put: roll down+out for net credit, else
     accept assignment."""
-    from ib_async import Option
-    old = ib.qualifyContracts(Option(
-        ticker, p["expiry"].replace("-", ""), p["strike"], "P", "SMART"))
-    old_td = ib.reqTickers(*old)[0] if old else None
-    chains = ib.reqSecDefOptParams(ticker, "", "STK",
-                                   ib.qualifyContracts(_stock(ticker))[0].conId)
-    chain = next((c for c in chains if c.exchange == "SMART"), None)
-    new_expiry = pick_expiry(sorted(chain.expirations)) if chain else None
-    new_c, new_td = (pick_contract_by_delta(ib, ticker, new_expiry, spot, "P",
-                                            config.CSP_TARGET_DELTA)
-                     if new_expiry else (None, None))
-    if old_td and new_c is not None:
-        close_cost = (old_td.bid + old_td.ask) / 2
-        new_credit = (new_td.bid + new_td.ask) / 2
+    old_q = broker.quote(ticker, p["expiry"], p["strike"], "P")
+    new_expiry = pick_expiry(broker.expirations(ticker))
+    new_q = (broker.pick_by_delta(ticker, new_expiry, spot, "P",
+                                  config.CSP_TARGET_DELTA)
+             if new_expiry else None)
+    if old_q and new_q is not None:
+        close_cost = old_q.mid
+        new_credit = new_q.mid
         if new_credit - close_cost >= config.ROLL_MIN_CREDIT:
-            buy_to_close(ib, old[0], old_td, p["contracts"], "roll_put", dry_run)
-            credit = sell_option(ib, new_c, new_td, p["contracts"],
+            buy_to_close(broker, old_q, p["contracts"], "roll_put", dry_run)
+            credit = sell_option(broker, new_q, p["contracts"],
                                  "roll_put_open", dry_run)
             if not dry_run:
-                p.update(strike=new_c.strike, expiry=str(pd.Timestamp(
-                    new_c.lastTradeDateOrContractMonth).date()),
-                    credit=p["credit"] + credit - close_cost)
+                p.update(strike=new_q.strike, expiry=new_q.expiry,
+                         credit=p["credit"] + credit - close_cost)
             return
     print(f"  {ticker}: no roll available for >= {config.ROLL_MIN_CREDIT} "
           "credit -- accepting assignment")
 
 
-def _open_covered_call(ib, state, ticker, s, spot, dry_run):
+def _open_covered_call(broker, state, ticker, s, spot, dry_run):
     earnings = next_earnings_dates(ticker) if config.AVOID_EARNINGS else []
-    chains = ib.reqSecDefOptParams(ticker, "", "STK",
-                                   ib.qualifyContracts(_stock(ticker))[0].conId)
-    chain = next((c for c in chains if c.exchange == "SMART"), None)
-    expiry = pick_expiry(sorted(chain.expirations)) if chain else None
+    expiry = pick_expiry(broker.expirations(ticker))
     if expiry is None:
         return
     if config.AVOID_EARNINGS and expiry_crosses_earnings(expiry, earnings):
         print(f"  {ticker}: CC expiry {expiry} crosses earnings; waiting")
         return
-    contract, td = pick_contract_by_delta(ib, ticker, expiry, spot, "C",
-                                          config.CC_TARGET_DELTA)
-    if contract is None:
+    q = broker.pick_by_delta(ticker, expiry, spot, "C",
+                             config.CC_TARGET_DELTA)
+    if q is None:
         print(f"  {ticker}: no liquid CC strike; waiting")
         return
     n = s["shares"] // config.CONTRACT_MULTIPLIER
-    credit = sell_option(ib, contract, td, n, "open_cc", dry_run)
+    credit = sell_option(broker, q, n, "open_cc", dry_run)
     if not dry_run:
         state["short_calls"][ticker] = {
-            "strike": contract.strike, "expiry": str(pd.Timestamp(
-                contract.lastTradeDateOrContractMonth).date()),
+            "strike": q.strike, "expiry": q.expiry,
             "contracts": n, "credit": credit}
 
 
-def _roll_call_up_out(ib, state, ticker, call, s, spot, dry_run):
-    from ib_async import Option
-    old = ib.qualifyContracts(Option(
-        ticker, call["expiry"].replace("-", ""), call["strike"], "C", "SMART"))
-    old_td = ib.reqTickers(*old)[0] if old else None
-    chains = ib.reqSecDefOptParams(ticker, "", "STK",
-                                   ib.qualifyContracts(_stock(ticker))[0].conId)
-    chain = next((c for c in chains if c.exchange == "SMART"), None)
-    new_expiry = pick_expiry(sorted(chain.expirations)) if chain else None
-    new_c, new_td = (pick_contract_by_delta(ib, ticker, new_expiry, spot, "C",
-                                            config.CC_TARGET_DELTA)
-                     if new_expiry else (None, None))
-    if old_td and new_c is not None and new_c.strike > call["strike"]:
-        close_cost = (old_td.bid + old_td.ask) / 2
-        new_credit = (new_td.bid + new_td.ask) / 2
+def _roll_call_up_out(broker, state, ticker, call, s, spot, dry_run):
+    old_q = broker.quote(ticker, call["expiry"], call["strike"], "C")
+    new_expiry = pick_expiry(broker.expirations(ticker))
+    new_q = (broker.pick_by_delta(ticker, new_expiry, spot, "C",
+                                  config.CC_TARGET_DELTA)
+             if new_expiry else None)
+    if old_q and new_q is not None and new_q.strike > call["strike"]:
+        close_cost = old_q.mid
+        new_credit = new_q.mid
         if new_credit - close_cost >= config.ROLL_MIN_CREDIT:
-            buy_to_close(ib, old[0], old_td, call["contracts"], "roll_cc", dry_run)
-            credit = sell_option(ib, new_c, new_td, call["contracts"],
+            buy_to_close(broker, old_q, call["contracts"], "roll_cc", dry_run)
+            credit = sell_option(broker, new_q, call["contracts"],
                                  "roll_cc_open", dry_run)
             if not dry_run:
-                call.update(strike=new_c.strike, expiry=str(pd.Timestamp(
-                    new_c.lastTradeDateOrContractMonth).date()),
-                    credit=call["credit"] + credit - close_cost)
+                call.update(strike=new_q.strike, expiry=new_q.expiry,
+                            credit=call["credit"] + credit - close_cost)
             return
     print(f"  {ticker}: CC below basis and no credit roll available -- "
           "holding; assignment would realize a loss (review manually)")
@@ -640,10 +751,12 @@ def cmd_status(args):
 
 
 def main():
-    p = argparse.ArgumentParser(description="Wheel strategy bot (IBKR paper ONLY)")
+    p = argparse.ArgumentParser(
+        description="Wheel strategy bot (paper ONLY; broker = config.BROKER "
+                    "/ WHEEL_BROKER env: ibkr | alpaca)")
     sub = p.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("scan", help="watchlist signal check (no TWS needed)")
-    pu = sub.add_parser("update", help="manage positions + open trades via TWS paper")
+    sub.add_parser("scan", help="watchlist signal check (no broker needed)")
+    pu = sub.add_parser("update", help="manage positions + open trades via paper broker")
     pu.add_argument("--dry-run", action="store_true",
                     help="decide everything, place no orders")
     sub.add_parser("status", help="print wheel state")

@@ -94,6 +94,57 @@ def test_spread_and_vol_filters():
     assert not wheel_bot.vol_ok(float("nan"))
 
 
+def test_delta_band_guard():
+    # target 0.30, band +/- MAX_DELTA_DISTANCE (0.08): 0.22-0.38 inclusive
+    assert wheel_bot.delta_ok(-0.29, 0.30)             # puts quote negative
+    assert wheel_bot.delta_ok(0.38, 0.30)
+    assert wheel_bot.delta_ok(0.22, 0.30)
+    assert not wheel_bot.delta_ok(-0.42, 0.30)         # the live 2026-07-18 case
+    assert not wheel_bot.delta_ok(0.21, 0.30)
+    assert not wheel_bot.delta_ok(None, 0.30)
+    assert not wheel_bot.delta_ok(float("nan"), 0.30)
+
+
+# Regression for the 2026-07-18 live finding: pick_by_delta returned the
+# closest spread-passing delta with no cap on distance from target, handing
+# back 0.41-0.46-delta puts for a 0.30 target. Exercises the real Alpaca
+# selection loop over canned chain snapshots -- no credentials, no network.
+
+def _fake_snap(delta, bid, ask):
+    return {"greeks": {"delta": delta},
+            "latestQuote": {"bp": bid, "ap": ask}}
+
+
+def _alpaca_pick(snapshots, right="P", target=0.30):
+    import alpaca_broker
+    b = object.__new__(alpaca_broker.AlpacaBroker)   # skip __init__: no creds
+    b._paged = lambda *a, **k: iter(snapshots.items())
+    return b.pick_by_delta("KO", "2026-08-14", 80.0, right, target)
+
+
+def test_pick_rejects_out_of_band_delta(capsys):
+    # acceptable spread (2.5% of mid) but delta 0.42: must be refused even
+    # though it is the closest -- and only -- spread-passing candidate
+    q = _alpaca_pick({"KO260814P00079000": _fake_snap(-0.42, 2.00, 2.05)})
+    assert q is None
+    assert "DELTA-BAND REJECT" in capsys.readouterr().out
+
+
+def test_pick_accepts_in_band_delta():
+    q = _alpaca_pick({"KO260814P00075000": _fake_snap(-0.29, 1.00, 1.04)})
+    assert q is not None
+    assert q.strike == 75.0 and q.delta == -0.29 and q.handle.endswith("75000")
+
+
+def test_pick_still_selects_normally_with_guard():
+    # in-band 0.29 and out-of-band 0.42 both pass spread: normal
+    # closest-delta selection picks 0.29 and the guard stays silent
+    both = {"KO260814P00079000": _fake_snap(-0.42, 2.00, 2.05),
+            "KO260814P00075000": _fake_snap(-0.29, 1.00, 1.04)}
+    q = _alpaca_pick(both)
+    assert q is not None and q.strike == 75.0
+
+
 def test_earnings_crossing():
     earnings = [pd.Timestamp("2024-04-25")]
     assert wheel_bot.expiry_crosses_earnings(

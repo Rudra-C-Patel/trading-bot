@@ -46,7 +46,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from backtest import (DATA_DIR, Backtest, load_price_data,
+from backtest import (DATA_DIR, Backtest, load_price_data, load_spy_regime,
                       monthly_distribution_lines, perf_metrics, precompute)
 from scanner import get_universe
 
@@ -81,10 +81,10 @@ def build_folds(start: str, end: str, train_months: int, test_months: int,
 
 def run_window(enriched: dict, rs_pct: pd.DataFrame, start: pd.Timestamp,
                end: pd.Timestamp, capital: float, max_positions: int,
-               top_pct: float) -> dict:
+               top_pct: float, regime: pd.Series | None = None) -> dict:
     """One independent backtest over [start, end]; returns metrics + trades."""
     bt = Backtest(enriched, rs_pct, str(start.date()), str(end.date()),
-                  capital, max_positions, top_pct)
+                  capital, max_positions, top_pct, regime=regime)
     equity = bt.run()
     eq = equity["equity"]
     m = perf_metrics(eq, capital)
@@ -160,8 +160,15 @@ def main():
     p.add_argument("--universe", choices=["all", "sp500"], default="all")
     p.add_argument("--universe-limit", type=int, default=0,
                    help="cap universe size for a quick smoke test")
+    p.add_argument("--spy-filter", action="store_true",
+                   help="entries only fire when SPY closed above its 200-day "
+                        "SMA the prior session; applied identically to train "
+                        "windows, test windows and the benchmark; output "
+                        "files get a _spy200 suffix")
     args = p.parse_args()
     cutoffs = [float(x) for x in args.cutoffs.split(",")]
+    regime = load_spy_regime(args.start, args.end) if args.spy_filter else None
+    suffix = "_spy200" if args.spy_filter else ""
 
     universe = get_universe(source=args.universe)
     if args.universe_limit:
@@ -189,7 +196,7 @@ def main():
         train_results = {}
         for c in cutoffs:
             m = run_window(enriched, rs_pct, tr_s, tr_e, args.capital,
-                           args.max_positions, c)
+                           args.max_positions, c, regime=regime)
             train_results[c] = m
             print(f"  train top {c:>4.0%}: CAGR {m['cagr']:+7.1%}  "
                   f"Sharpe {_f2(m['sharpe'])}  trades {m['trades']}")
@@ -197,7 +204,7 @@ def main():
         print(f"  chosen cutoff: top {chosen:.0%} -> testing "
               f"{te_s.date()} -> {te_e.date()}")
         tm = run_window(enriched, rs_pct, te_s, te_e, args.capital,
-                        args.max_positions, chosen)
+                        args.max_positions, chosen, regime=regime)
         print(f"  OOS: return {tm['total_return']:+7.1%}  "
               f"Sharpe {_f2(tm['sharpe'])}  trades {tm['trades']}")
 
@@ -229,7 +236,7 @@ def main():
     bench_s, bench_e = folds[0]["test"][0], folds[-1]["test"][1]
     print(f"\nBenchmark: fixed top 10% over {bench_s.date()} -> {bench_e.date()}")
     bench = run_window(enriched, rs_pct, bench_s, bench_e, args.capital,
-                       args.max_positions, 0.10)
+                       args.max_positions, 0.10, regime=regime)
 
     # ---- report -------------------------------------------------------------
     lines = [
@@ -242,6 +249,8 @@ def main():
         f"Cutoffs tested: {', '.join(f'{c:.0%}' for c in cutoffs)}",
         "Selection rule (fixed in advance): highest train CAGR; ties ->",
         "higher Sharpe, then more trades, then the earlier cutoff.",
+        f"SPY>200SMA entry gate (prior close): "
+        f"{'ON' if args.spy_filter else 'OFF'}",
         "=" * 72,
         "",
     ]
@@ -289,7 +298,7 @@ def main():
     print(text)
 
     os.makedirs(DATA_DIR, exist_ok=True)
-    with open(os.path.join(DATA_DIR, "walkforward_report.txt"), "w") as fh:
+    with open(os.path.join(DATA_DIR, f"walkforward_report{suffix}.txt"), "w") as fh:
         fh.write(text + "\n")
 
     csv_rows = []
@@ -309,13 +318,15 @@ def main():
                     test_forced_close=t["forced_close"])
         csv_rows.append(flat)
     pd.DataFrame(csv_rows).to_csv(
-        os.path.join(DATA_DIR, "walkforward_folds.csv"), index=False)
+        os.path.join(DATA_DIR, f"walkforward_folds{suffix}.csv"), index=False)
     pd.DataFrame(oos_trades).to_csv(
-        os.path.join(DATA_DIR, "walkforward_trades.csv"), index=False)
+        os.path.join(DATA_DIR, f"walkforward_trades{suffix}.csv"), index=False)
     oos_eq.rename("equity").to_csv(
-        os.path.join(DATA_DIR, "walkforward_oos_equity.csv"))
-    print("\nSaved: data/walkforward_report.txt, data/walkforward_folds.csv, "
-          "data/walkforward_trades.csv, data/walkforward_oos_equity.csv")
+        os.path.join(DATA_DIR, f"walkforward_oos_equity{suffix}.csv"))
+    print(f"\nSaved: data/walkforward_report{suffix}.txt, "
+          f"data/walkforward_folds{suffix}.csv, "
+          f"data/walkforward_trades{suffix}.csv, "
+          f"data/walkforward_oos_equity{suffix}.csv")
 
 
 if __name__ == "__main__":

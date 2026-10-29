@@ -1,0 +1,47 @@
+================================================================
+MORGAN TRADEZ BACKTEST REPORT
+Period: 2020-01-01 -> 2024-12-31   Starting capital: $100,000
+================================================================
+Final equity:        $        99,182
+Total return:                 -0.8%
+CAGR:                         -0.2%
+Max drawdown:                 -4.4%
+Sharpe (daily, rf=0):         -0.05
+
+Annual returns:
+  2020:    -1.0%   (year-end equity $98,981)
+  2021:     0.0%   (year-end equity $98,981)
+  2022:    -1.0%   (year-end equity $97,973)
+  2023:     0.0%   (year-end equity $97,973)
+  2024:     1.2%   (year-end equity $99,182)
+
+Round-trip trades:            3
+Win rate:                    33.3%
+Average R multiple:          -0.27R
+Best / worst R:        1.23R / -1.02R
+Avg winner:                   1.23R
+Avg loser:                   -1.02R
+
+Exit reasons (final exits):
+  stop               2
+  trail_stop         1
+
+Trades by entry year:
+  year   trades  win rate   avg R  total R
+  2020        1      0.0%   -1.02     -1.0
+  2022        1      0.0%   -1.02     -1.0
+  2024        1    100.0%    1.23      1.2
+
+SURVIVORSHIP-BIAS ADJUSTMENT (universe = today's listings only):
+  Raw CAGR -0.2%; studies estimate survivor-only backtests
+  overstate annual returns by 1-4 percentage points, so a
+  defensible expectation is roughly -4.2% to -1.2% CAGR.
+  Point-in-time membership + delisted price data (the real fix)
+  requires a paid feed (e.g. Norgate Platinum, ~$787/yr).
+
+CAVEATS: current index membership only (survivorship bias inflates
+results), 0.1% slippage assumption, adjusted Yahoo data, no
+commissions, breakout fills at max(open, trigger). Treat the
+absolute numbers as optimistic; the relative behavior (drawdowns,
+win rate, R distribution) is the honest signal.
+================================================================

@@ -1,0 +1,348 @@
+====================================================================
+MULTI-INSTRUMENT SUITE -- WALK-FORWARD REPORT
+Protocol: 18m train / 6m test / 6m step; fresh $100,000 per window;
+selection rule fixed in advance: highest train CAGR, ties ->
+Sharpe, trades, earlier grid entry. Costs and 10% circuit breaker
+applied inside every window. See bot/engine.py for execution model.
+====================================================================
+
+====================================================================
+SPY  --  meanrev on 15Min bars
+====================================================================
+OOS span 2017-07-04 -> 2026-07-03  (18 folds; circuit breaker tripped in 13)
+
+Fold detail (train leaderboard: params CAGR/Sharpe/trades):
+  fold 1  train 2016-01-04 -> 2017-07-03   test 2017-07-04 -> 2018-01-03
+    entry_z=1.5: -4.9%/-0.88/61 | entry_z=1.8: -4.9%/-0.87/52 | entry_z=2.2: -5.6%/-1.32/45
+    chosen [entry_z=1.5] -> OOS   -8.9%  Sharpe -3.38  DD -9.4%  285 trades
+  fold 2  train 2016-07-04 -> 2018-01-03   test 2018-01-04 -> 2018-07-03
+    entry_z=1.5: -5.7%/-1.33/335 | entry_z=1.8: -6.1%/-1.51/323 | entry_z=2.2: -5.6%/-1.20/421
+    chosen [entry_z=2.2] -> OOS  -10.1%  Sharpe -2.82  DD -10.1%  72 trades  [CIRCUIT BREAKER]
+  fold 3  train 2017-01-04 -> 2018-07-03   test 2018-07-04 -> 2019-01-03
+    entry_z=1.5: -5.9%/-1.53/305 | entry_z=1.8: -6.1%/-1.71/269 | entry_z=2.2: -5.8%/-1.51/327
+    chosen [entry_z=2.2] -> OOS  -10.8%  Sharpe -2.50  DD -10.8%  136 trades  [CIRCUIT BREAKER]
+  fold 4  train 2017-07-04 -> 2019-01-03   test 2019-01-04 -> 2019-07-03
+    entry_z=1.5: -6.4%/-2.05/288 | entry_z=1.8: -6.1%/-1.99/260 | entry_z=2.2: -6.2%/-1.51/203
+    chosen [entry_z=1.8] -> OOS   -6.9%  Sharpe -1.15  DD -8.0%  196 trades
+  fold 5  train 2018-01-04 -> 2019-07-03   test 2019-07-04 -> 2020-01-03
+    entry_z=1.5: -6.9%/-1.35/64 | entry_z=1.8: -6.9%/-1.47/55 | entry_z=2.2: -6.9%/-1.61/72
+    chosen [entry_z=2.2] -> OOS   -9.6%  Sharpe -3.10  DD -10.0%  159 trades  [CIRCUIT BREAKER]
+  fold 6  train 2018-07-04 -> 2020-01-03   test 2020-01-04 -> 2020-07-03
+    entry_z=1.5: -6.9%/-1.95/159 | entry_z=1.8: -6.7%/-1.16/205 | entry_z=2.2: -7.3%/-1.43/136
+    chosen [entry_z=1.8] -> OOS  -10.8%  Sharpe -3.19  DD -11.3%  64 trades  [CIRCUIT BREAKER]
+  fold 7  train 2019-01-04 -> 2020-07-03   test 2020-07-04 -> 2021-01-03
+    entry_z=1.5: -6.8%/-1.11/217 | entry_z=1.8: -6.6%/-1.03/235 | entry_z=2.2: -6.7%/-1.72/116
+    chosen [entry_z=1.8] -> OOS   -8.3%  Sharpe -1.54  DD -10.0%  143 trades  [CIRCUIT BREAKER]
+  fold 8  train 2019-07-04 -> 2021-01-03   test 2021-01-04 -> 2021-07-03
+    entry_z=1.5: -5.1%/-1.00/230 | entry_z=1.8: -6.1%/-1.27/193 | entry_z=2.2: -6.5%/-1.77/159
+    chosen [entry_z=1.5] -> OOS   -9.7%  Sharpe -2.88  DD -9.2%  126 trades  [CIRCUIT BREAKER]
+  fold 9  train 2020-01-04 -> 2021-07-03   test 2021-07-04 -> 2022-01-03
+    entry_z=1.5: -6.4%/-1.58/79 | entry_z=1.8: -7.4%/-1.81/64 | entry_z=2.2: -6.5%/-0.53/100
+    chosen [entry_z=1.5] -> OOS   -8.9%  Sharpe -2.52  DD -10.3%  146 trades  [CIRCUIT BREAKER]
+  fold 10  train 2020-07-04 -> 2022-01-03   test 2022-01-04 -> 2022-07-03
+    entry_z=1.5: -5.6%/-0.88/158 | entry_z=1.8: -5.7%/-0.89/143 | entry_z=2.2: -4.7%/-0.80/108
+    chosen [entry_z=2.2] -> OOS   -9.5%  Sharpe -1.88  DD -9.9%  106 trades  [CIRCUIT BREAKER]
+  fold 11  train 2021-01-04 -> 2022-07-03   test 2022-07-04 -> 2023-01-03
+    entry_z=1.5: -6.7%/-1.65/126 | entry_z=1.8: -6.7%/-1.71/103 | entry_z=2.2: -6.9%/-1.42/116
+    chosen [entry_z=1.5] -> OOS   -8.7%  Sharpe -2.25  DD -9.5%  94 trades  [CIRCUIT BREAKER]
+  fold 12  train 2021-07-04 -> 2023-01-03   test 2023-01-04 -> 2023-07-03
+    entry_z=1.5: -6.1%/-1.45/146 | entry_z=1.8: -6.6%/-1.81/127 | entry_z=2.2: -6.3%/-1.92/113
+    chosen [entry_z=1.5] -> OOS   -9.7%  Sharpe -4.00  DD -10.0%  47 trades  [CIRCUIT BREAKER]
+  fold 13  train 2022-01-04 -> 2023-07-03   test 2023-07-04 -> 2024-01-03
+    entry_z=1.5: -6.3%/-1.60/53 | entry_z=1.8: -6.6%/-1.27/42 | entry_z=2.2: -6.5%/-1.08/106
+    chosen [entry_z=1.5] -> OOS   -6.4%  Sharpe -1.47  DD -7.6%  281 trades
+  fold 14  train 2022-07-04 -> 2024-01-03   test 2024-01-04 -> 2024-07-03
+    entry_z=1.5: -5.9%/-1.29/94 | entry_z=1.8: -4.9%/-0.48/218 | entry_z=2.2: -6.9%/-0.98/127
+    chosen [entry_z=1.8] -> OOS   -9.7%  Sharpe -3.08  DD -10.1%  140 trades  [CIRCUIT BREAKER]
+  fold 15  train 2023-01-04 -> 2024-07-03   test 2024-07-04 -> 2025-01-03
+    entry_z=1.5: -6.6%/-2.25/47 | entry_z=1.8: -6.7%/-2.29/40 | entry_z=2.2: -6.9%/-1.53/107
+    chosen [entry_z=1.5] -> OOS   -7.8%  Sharpe -1.75  DD -7.8%  273 trades
+  fold 16  train 2023-07-04 -> 2025-01-03   test 2025-01-04 -> 2025-07-03
+    entry_z=1.5: -6.2%/-1.11/334 | entry_z=1.8: -5.9%/-1.22/263 | entry_z=2.2: -6.7%/-1.48/213
+    chosen [entry_z=1.8] -> OOS   -9.0%  Sharpe -2.10  DD -9.8%  98 trades  [CIRCUIT BREAKER]
+  fold 17  train 2024-01-04 -> 2025-07-03   test 2025-07-04 -> 2026-01-03
+    entry_z=1.5: -5.9%/-1.25/174 | entry_z=1.8: -6.6%/-1.75/140 | entry_z=2.2: -6.6%/-1.32/269
+    chosen [entry_z=1.5] -> OOS   -8.4%  Sharpe -3.54  DD -9.9%  165 trades  [CIRCUIT BREAKER]
+  fold 18  train 2024-07-04 -> 2026-01-03   test 2026-01-04 -> 2026-07-03
+    entry_z=1.5: -6.8%/-1.27/295 | entry_z=1.8: -4.2%/-0.65/277 | entry_z=2.2: -5.8%/-1.01/198
+    chosen [entry_z=1.8] -> OOS   -5.3%  Sharpe -1.08  DD -8.5%  215 trades
+
+STITCHED OUT-OF-SAMPLE (params always chosen on prior data only):
+  Total return   -80.3%   CAGR  -16.5%   max DD -81.1%
+  Sharpe -2.26   Sortino -2.74   Calmar -0.20
+  Closed trades 2746   win rate 47%   avg -0.16R
+  Monthly return distribution (109 months):
+    positive months:          14.7%
+    mean / median:           -1.46% / -0.94%
+    std dev:                  2.08%
+    best / worst:             3.03% / -9.58%
+
+BENCHMARK -- spec defaults [entry_z=1.5] held fixed over the same span:
+  Total return    -9.4%   CAGR   -1.1%   Sharpe -0.83   max DD -10.0%   trades 288   [CIRCUIT BREAKER]
+
+====================================================================
+QQQ  --  meanrev on 15Min bars
+====================================================================
+OOS span 2017-07-04 -> 2026-07-03  (18 folds; circuit breaker tripped in 13)
+
+Fold detail (train leaderboard: params CAGR/Sharpe/trades):
+  fold 1  train 2016-01-04 -> 2017-07-03   test 2017-07-04 -> 2018-01-03
+    entry_z=1.5: -5.7%/-0.82/61 | entry_z=1.8: -5.8%/-1.04/45 | entry_z=2.2: -5.9%/-1.23/35
+    chosen [entry_z=1.5] -> OOS   -7.3%  Sharpe -1.69  DD -7.9%  273 trades
+  fold 2  train 2016-07-04 -> 2018-01-03   test 2018-01-04 -> 2018-07-03
+    entry_z=1.5: -6.7%/-1.90/151 | entry_z=1.8: -6.7%/-1.93/156 | entry_z=2.2: -6.6%/-1.47/222
+    chosen [entry_z=2.2] -> OOS  -10.1%  Sharpe -2.30  DD -10.0%  66 trades  [CIRCUIT BREAKER]
+  fold 3  train 2017-01-04 -> 2018-07-03   test 2018-07-04 -> 2019-01-03
+    entry_z=1.5: -6.4%/-1.47/245 | entry_z=1.8: -5.8%/-1.32/203 | entry_z=2.2: -5.6%/-1.49/156
+    chosen [entry_z=2.2] -> OOS  -10.0%  Sharpe -2.71  DD -10.0%  91 trades  [CIRCUIT BREAKER]
+  fold 4  train 2017-07-04 -> 2019-01-03   test 2019-01-04 -> 2019-07-03
+    entry_z=1.5: -6.4%/-1.28/289 | entry_z=1.8: -6.8%/-1.10/278 | entry_z=2.2: -6.5%/-1.13/186
+    chosen [entry_z=1.5] -> OOS   -5.3%  Sharpe -0.49  DD -9.9%  212 trades  [CIRCUIT BREAKER]
+  fold 5  train 2018-01-04 -> 2019-07-03   test 2019-07-04 -> 2020-01-03
+    entry_z=1.5: -7.0%/-1.36/60 | entry_z=1.8: -7.0%/-1.50/53 | entry_z=2.2: -6.9%/-1.32/66
+    chosen [entry_z=2.2] -> OOS   -7.8%  Sharpe -2.14  DD -9.5%  132 trades  [CIRCUIT BREAKER]
+  fold 6  train 2018-07-04 -> 2020-01-03   test 2020-01-04 -> 2020-07-03
+    entry_z=1.5: -6.5%/-1.56/137 | entry_z=1.8: -6.8%/-1.41/127 | entry_z=2.2: -6.8%/-1.55/91
+    chosen [entry_z=1.5] -> OOS   -8.8%  Sharpe -2.29  DD -10.1%  78 trades  [CIRCUIT BREAKER]
+  fold 7  train 2019-01-04 -> 2020-07-03   test 2020-07-04 -> 2021-01-03
+    entry_z=1.5: -3.6%/-0.28/212 | entry_z=1.8: -4.9%/-0.40/310 | entry_z=2.2: -5.2%/-0.92/131
+    chosen [entry_z=1.5] -> OOS  -10.7%  Sharpe -1.99  DD -10.4%  98 trades  [CIRCUIT BREAKER]
+  fold 8  train 2019-07-04 -> 2021-01-03   test 2021-01-04 -> 2021-07-03
+    entry_z=1.5: -3.7%/-0.62/180 | entry_z=1.8: -6.1%/-1.26/141 | entry_z=2.2: -5.3%/-1.23/132
+    chosen [entry_z=1.5] -> OOS   -7.3%  Sharpe -1.42  DD -10.2%  100 trades  [CIRCUIT BREAKER]
+  fold 9  train 2020-01-04 -> 2021-07-03   test 2021-07-04 -> 2022-01-03
+    entry_z=1.5: -6.0%/-1.31/78 | entry_z=1.8: -5.6%/-1.13/65 | entry_z=2.2: -5.8%/-0.82/55
+    chosen [entry_z=1.8] -> OOS   -8.1%  Sharpe -3.49  DD -10.1%  52 trades  [CIRCUIT BREAKER]
+  fold 10  train 2020-07-04 -> 2022-01-03   test 2022-01-04 -> 2022-07-03
+    entry_z=1.5: -7.3%/-1.14/98 | entry_z=1.8: -5.3%/-0.72/73 | entry_z=2.2: -4.3%/-0.42/195
+    chosen [entry_z=2.2] -> OOS   +1.3%  Sharpe 0.29  DD -8.8%  134 trades
+  fold 11  train 2021-01-04 -> 2022-07-03   test 2022-07-04 -> 2023-01-03
+    entry_z=1.5: -5.0%/-0.82/100 | entry_z=1.8: -4.7%/-0.79/117 | entry_z=2.2: -5.5%/-1.09/103
+    chosen [entry_z=1.8] -> OOS   -9.3%  Sharpe -2.13  DD -10.0%  60 trades  [CIRCUIT BREAKER]
+  fold 12  train 2021-07-04 -> 2023-01-03   test 2023-01-04 -> 2023-07-03
+    entry_z=1.5: -5.9%/-1.27/166 | entry_z=1.8: -5.5%/-1.99/52 | entry_z=2.2: -5.8%/-1.52/113
+    chosen [entry_z=1.8] -> OOS   -9.7%  Sharpe -3.84  DD -11.4%  40 trades  [CIRCUIT BREAKER]
+  fold 13  train 2022-01-04 -> 2023-07-03   test 2023-07-04 -> 2024-01-03
+    entry_z=1.5: -7.1%/-1.06/39 | entry_z=1.8: -6.8%/-0.86/55 | entry_z=2.2: -5.1%/-0.43/171
+    chosen [entry_z=2.2] -> OOS   -5.5%  Sharpe -1.16  DD -8.9%  144 trades
+  fold 14  train 2022-07-04 -> 2024-01-03   test 2024-01-04 -> 2024-07-03
+    entry_z=1.5: -5.7%/-0.93/81 | entry_z=1.8: -6.3%/-1.23/60 | entry_z=2.2: -5.9%/-1.55/37
+    chosen [entry_z=1.5] -> OOS   -7.1%  Sharpe -1.48  DD -9.7%  165 trades  [CIRCUIT BREAKER]
+  fold 15  train 2023-01-04 -> 2024-07-03   test 2024-07-04 -> 2025-01-03
+    entry_z=1.5: -5.7%/-1.56/42 | entry_z=1.8: -6.6%/-2.16/40 | entry_z=2.2: -5.8%/-1.24/62
+    chosen [entry_z=1.5] -> OOS   -3.5%  Sharpe -0.26  DD -9.2%  261 trades
+  fold 16  train 2023-07-04 -> 2025-01-03   test 2025-01-04 -> 2025-07-03
+    entry_z=1.5: -6.4%/-1.45/84 | entry_z=1.8: -6.4%/-1.49/76 | entry_z=2.2: -6.4%/-0.91/241
+    chosen [entry_z=2.2] -> OOS   -8.6%  Sharpe -1.72  DD -10.1%  73 trades  [CIRCUIT BREAKER]
+  fold 17  train 2024-01-04 -> 2025-07-03   test 2025-07-04 -> 2026-01-03
+    entry_z=1.5: -4.8%/-0.85/165 | entry_z=1.8: -4.5%/-0.85/139 | entry_z=2.2: -7.3%/-0.86/317
+    chosen [entry_z=1.8] -> OOS   +0.3%  Sharpe 0.13  DD -7.7%  218 trades
+  fold 18  train 2024-07-04 -> 2026-01-03   test 2026-01-04 -> 2026-07-03
+    entry_z=1.5: -4.8%/-0.41/286 | entry_z=1.8: +1.9%/0.34/240 | entry_z=2.2: -5.2%/-0.67/167
+    chosen [entry_z=1.8] -> OOS   -9.4%  Sharpe -3.41  DD -9.5%  59 trades  [CIRCUIT BREAKER]
+
+STITCHED OUT-OF-SAMPLE (params always chosen on prior data only):
+  Total return   -73.2%   CAGR  -13.6%   max DD -73.6%
+  Sharpe -1.44   Sortino -1.81   Calmar -0.19
+  Closed trades 2256   win rate 48%   avg -0.12R
+  Monthly return distribution (109 months):
+    positive months:          16.5%
+    mean / median:           -1.17% / -0.50%
+    std dev:                  2.54%
+    best / worst:             7.56% / -8.40%
+
+BENCHMARK -- spec defaults [entry_z=1.8] held fixed over the same span:
+  Total return   -10.1%   CAGR   -1.2%   Sharpe -0.45   max DD -10.0%   trades 278   [CIRCUIT BREAKER]
+
+====================================================================
+BTC/USD  --  breakout on 1Hour bars
+====================================================================
+OOS span 2022-07-01 -> 2026-06-30  (8 folds; circuit breaker tripped in 8)
+
+Fold detail (train leaderboard: params CAGR/Sharpe/trades):
+  fold 1  train 2021-01-01 -> 2022-06-30   test 2022-07-01 -> 2022-12-31
+    lookback=20: +2.2%/0.25/12 | lookback=40: -4.3%/-0.70/11 | lookback=55: -5.5%/-0.54/26
+    chosen [lookback=20] -> OOS   -9.7%  Sharpe -1.62  DD -9.4%  11 trades  [CIRCUIT BREAKER]
+  fold 2  train 2021-07-01 -> 2022-12-31   test 2023-01-01 -> 2023-06-30
+    lookback=20: -1.8%/-0.10/28 | lookback=40: -2.1%/-0.14/19 | lookback=55: -1.5%/-0.10/19
+    chosen [lookback=55] -> OOS   -1.2%  Sharpe -0.06  DD -8.4%  35 trades  [CIRCUIT BREAKER]
+  fold 3  train 2022-01-01 -> 2023-06-30   test 2023-07-01 -> 2023-12-31
+    lookback=20: -7.2%/-1.30/12 | lookback=40: -7.1%/-0.92/11 | lookback=55: -7.0%/-1.01/11
+    chosen [lookback=55] -> OOS  -10.3%  Sharpe -3.87  DD -10.3%  14 trades  [CIRCUIT BREAKER]
+  fold 4  train 2022-07-01 -> 2023-12-31   test 2024-01-01 -> 2024-06-30
+    lookback=20: -6.6%/-0.94/11 | lookback=40: -5.8%/-0.98/11 | lookback=55: -5.8%/-0.98/11
+    chosen [lookback=40] -> OOS   -5.8%  Sharpe -1.56  DD -8.8%  13 trades  [CIRCUIT BREAKER]
+  fold 5  train 2023-01-01 -> 2024-06-30   test 2024-07-01 -> 2024-12-31
+    lookback=20: -2.1%/-0.13/31 | lookback=40: -1.6%/-0.09/33 | lookback=55: -0.8%/-0.03/35
+    chosen [lookback=55] -> OOS  -10.4%  Sharpe -2.12  DD -10.4%  17 trades  [CIRCUIT BREAKER]
+  fold 6  train 2023-07-01 -> 2024-12-31   test 2025-01-01 -> 2025-06-30
+    lookback=20: -7.0%/-1.82/11 | lookback=40: -7.3%/-2.07/18 | lookback=55: -7.0%/-2.20/14
+    chosen [lookback=55] -> OOS  -10.1%  Sharpe -2.47  DD -10.1%  11 trades  [CIRCUIT BREAKER]
+  fold 7  train 2024-01-01 -> 2025-06-30   test 2025-07-01 -> 2025-12-31
+    lookback=20: -4.4%/-1.16/8 | lookback=40: -3.9%/-0.89/13 | lookback=55: -3.9%/-0.89/13
+    chosen [lookback=40] -> OOS   -9.4%  Sharpe -2.29  DD -9.4%  16 trades  [CIRCUIT BREAKER]
+  fold 8  train 2024-07-01 -> 2025-12-31   test 2026-01-01 -> 2026-06-30
+    lookback=20: -6.8%/-1.02/18 | lookback=40: -7.0%/-1.13/16 | lookback=55: -7.1%/-1.22/17
+    chosen [lookback=20] -> OOS  -11.0%  Sharpe -2.53  DD -11.0%  9 trades  [CIRCUIT BREAKER]
+
+STITCHED OUT-OF-SAMPLE (params always chosen on prior data only):
+  Total return   -50.8%   CAGR  -16.3%   max DD -51.4%
+  Sharpe -1.62   Sortino -2.14   Calmar -0.32
+  Closed trades 126   win rate 22%   avg -0.46R
+  Monthly return distribution (48 months):
+    positive months:           4.2%
+    mean / median:           -1.43% / 0.00%
+    std dev:                  2.74%
+    best / worst:             5.61% / -11.00%
+
+BENCHMARK -- spec defaults [lookback=20] held fixed over the same span:
+  Total return    -9.7%   CAGR   -2.5%   Sharpe -0.57   max DD -9.4%   trades 11   [CIRCUIT BREAKER]
+
+====================================================================
+GLD  --  trend on 4HourRTH bars
+====================================================================
+OOS span 2017-07-04 -> 2026-07-03  (18 folds; circuit breaker tripped in 0)
+
+Fold detail (train leaderboard: params CAGR/Sharpe/trades):
+  fold 1  train 2016-01-04 -> 2017-07-03   test 2017-07-04 -> 2018-01-03
+    fast=50,slow=200: +0.2%/0.08/2 | fast=30,slow=120: +2.7%/0.95/3 | fast=100,slow=300: +0.2%/0.11/1
+    chosen [fast=30,slow=120] -> OOS   -3.4%  Sharpe -2.46  DD -3.5%  4 trades
+  fold 2  train 2016-07-04 -> 2018-01-03   test 2018-01-04 -> 2018-07-03
+    fast=50,slow=200: -0.5%/-0.21/4 | fast=30,slow=120: -2.0%/-0.70/6 | fast=100,slow=300: +0.2%/0.13/2
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 3  train 2017-01-04 -> 2018-07-03   test 2018-07-04 -> 2019-01-03
+    fast=50,slow=200: -0.8%/-0.30/4 | fast=30,slow=120: -2.2%/-0.77/6 | fast=100,slow=300: +0.2%/0.13/2
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 4  train 2017-07-04 -> 2019-01-03   test 2019-01-04 -> 2019-07-03
+    fast=50,slow=200: -1.1%/-0.82/3 | fast=30,slow=120: -3.4%/-1.72/6 | fast=100,slow=300: +0.1%/0.08/1
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 5  train 2018-01-04 -> 2019-07-03   test 2019-07-04 -> 2020-01-03
+    fast=50,slow=200: -0.3%/-0.20/3 | fast=30,slow=120: -0.7%/-0.54/3 | fast=100,slow=300: +0.1%/0.11/1
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 6  train 2018-07-04 -> 2020-01-03   test 2020-01-04 -> 2020-07-03
+    fast=50,slow=200: -0.3%/-0.20/3 | fast=30,slow=120: +1.0%/0.53/4 | fast=100,slow=300: +0.1%/0.11/1
+    chosen [fast=30,slow=120] -> OOS   +2.0%  Sharpe 1.00  DD -1.6%  1 trades
+  fold 7  train 2019-01-04 -> 2020-07-03   test 2020-07-04 -> 2021-01-03
+    fast=50,slow=200: -0.2%/-0.11/2 | fast=30,slow=120: +3.3%/1.07/3 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=30,slow=120] -> OOS   -4.3%  Sharpe -1.34  DD -4.6%  1 trades
+  fold 8  train 2019-07-04 -> 2021-01-03   test 2021-01-04 -> 2021-07-03
+    fast=50,slow=200: +0.0%/0.00/0 | fast=30,slow=120: +0.1%/0.05/3 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=30,slow=120] -> OOS   +4.0%  Sharpe 1.48  DD -2.2%  1 trades
+  fold 9  train 2020-01-04 -> 2021-07-03   test 2021-07-04 -> 2022-01-03
+    fast=50,slow=200: -0.4%/-0.16/2 | fast=30,slow=120: +0.0%/0.03/4 | fast=100,slow=300: -0.9%/-0.49/1
+    chosen [fast=30,slow=120] -> OOS   -2.8%  Sharpe -1.49  DD -3.1%  3 trades
+  fold 10  train 2020-07-04 -> 2022-01-03   test 2022-01-04 -> 2022-07-03
+    fast=50,slow=200: -1.9%/-0.54/4 | fast=30,slow=120: -3.2%/-0.56/6 | fast=100,slow=300: -3.4%/-1.39/3
+    chosen [fast=50,slow=200] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 11  train 2021-01-04 -> 2022-07-03   test 2022-07-04 -> 2023-01-03
+    fast=50,slow=200: -1.0%/-0.32/3 | fast=30,slow=120: +0.7%/0.19/4 | fast=100,slow=300: -3.3%/-1.08/4
+    chosen [fast=30,slow=120] -> OOS   -1.3%  Sharpe -1.70  DD -1.6%  1 trades
+  fold 12  train 2021-07-04 -> 2023-01-03   test 2023-01-04 -> 2023-07-03
+    fast=50,slow=200: -2.6%/-1.02/3 | fast=30,slow=120: -2.8%/-1.17/4 | fast=100,slow=300: -1.6%/-0.63/4
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 13  train 2022-01-04 -> 2023-07-03   test 2023-07-04 -> 2024-01-03
+    fast=50,slow=200: -1.2%/-0.93/1 | fast=30,slow=120: +0.6%/0.19/2 | fast=100,slow=300: +3.8%/0.95/2
+    chosen [fast=100,slow=300] -> OOS   -0.5%  Sharpe -0.46  DD -1.7%  1 trades
+  fold 14  train 2022-07-04 -> 2024-01-03   test 2024-01-04 -> 2024-07-03
+    fast=50,slow=200: -1.7%/-0.77/3 | fast=30,slow=120: -0.1%/-0.01/4 | fast=100,slow=300: +3.3%/0.86/2
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 15  train 2023-01-04 -> 2024-07-03   test 2024-07-04 -> 2025-01-03
+    fast=50,slow=200: -0.5%/-0.27/2 | fast=30,slow=120: +0.8%/0.23/3 | fast=100,slow=300: -0.4%/-0.26/1
+    chosen [fast=30,slow=120] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 16  train 2023-07-04 -> 2025-01-03   test 2025-01-04 -> 2025-07-03
+    fast=50,slow=200: -0.5%/-0.27/2 | fast=30,slow=120: -0.7%/-0.34/2 | fast=100,slow=300: -0.3%/-0.26/1
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 17  train 2024-01-04 -> 2025-07-03   test 2025-07-04 -> 2026-01-03
+    fast=50,slow=200: +0.0%/0.00/0 | fast=30,slow=120: +2.3%/0.99/1 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=30,slow=120] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 18  train 2024-07-04 -> 2026-01-03   test 2026-01-04 -> 2026-07-03
+    fast=50,slow=200: +0.0%/0.00/0 | fast=30,slow=120: +2.3%/0.99/1 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=30,slow=120] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+
+STITCHED OUT-OF-SAMPLE (params always chosen on prior data only):
+  Total return    -6.5%   CAGR   -0.7%   max DD -6.7%
+  Sharpe -0.28   Sortino -0.33   Calmar -0.11
+  Closed trades 12   win rate 33%   avg -0.29R
+  Monthly return distribution (109 months):
+    positive months:           5.5%
+    mean / median:           -0.06% / 0.00%
+    std dev:                  0.89%
+    best / worst:             6.02% / -4.33%
+
+BENCHMARK -- spec defaults [fast=50,slow=200] held fixed over the same span:
+  Total return    -7.0%   CAGR   -0.8%   Sharpe -0.44   max DD -7.1%   trades 12
+
+====================================================================
+USO  --  trend on 4HourRTH bars
+====================================================================
+OOS span 2017-07-04 -> 2026-07-03  (18 folds; circuit breaker tripped in 0)
+
+Fold detail (train leaderboard: params CAGR/Sharpe/trades):
+  fold 1  train 2016-01-04 -> 2017-07-03   test 2017-07-04 -> 2018-01-03
+    fast=50,slow=200: -1.2%/-0.43/2 | fast=30,slow=120: -2.4%/-0.62/4 | fast=100,slow=300: -2.2%/-0.71/3
+    chosen [fast=50,slow=200] -> OOS   -0.2%  Sharpe -0.04  DD -3.0%  1 trades
+  fold 2  train 2016-07-04 -> 2018-01-03   test 2018-01-04 -> 2018-07-03
+    fast=50,slow=200: -1.3%/-0.31/3 | fast=30,slow=120: -4.1%/-0.82/6 | fast=100,slow=300: +2.5%/0.52/4
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 3  train 2017-01-04 -> 2018-07-03   test 2018-07-04 -> 2019-01-03
+    fast=50,slow=200: -0.1%/-0.02/1 | fast=30,slow=120: +1.9%/0.42/4 | fast=100,slow=300: +4.9%/1.25/1
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 4  train 2017-07-04 -> 2019-01-03   test 2019-01-04 -> 2019-07-03
+    fast=50,slow=200: -0.1%/-0.02/1 | fast=30,slow=120: +0.4%/0.10/5 | fast=100,slow=300: +4.9%/1.25/1
+    chosen [fast=100,slow=300] -> OOS   +0.5%  Sharpe 0.20  DD -3.7%  1 trades
+  fold 5  train 2018-01-04 -> 2019-07-03   test 2019-07-04 -> 2020-01-03
+    fast=50,slow=200: -2.0%/-0.98/1 | fast=30,slow=120: +1.1%/0.29/3 | fast=100,slow=300: +0.3%/0.12/1
+    chosen [fast=30,slow=120] -> OOS   -7.1%  Sharpe -2.91  DD -7.1%  3 trades
+  fold 6  train 2018-07-04 -> 2020-01-03   test 2020-01-04 -> 2020-07-03
+    fast=50,slow=200: -4.4%/-1.66/3 | fast=30,slow=120: -5.6%/-1.81/5 | fast=100,slow=300: +4.0%/0.98/2
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 7  train 2019-01-04 -> 2020-07-03   test 2020-07-04 -> 2021-01-03
+    fast=50,slow=200: -4.4%/-1.66/3 | fast=30,slow=120: -5.9%/-1.81/4 | fast=100,slow=300: +2.8%/0.66/2
+    chosen [fast=100,slow=300] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 8  train 2019-07-04 -> 2021-01-03   test 2021-01-04 -> 2021-07-03
+    fast=50,slow=200: -2.4%/-0.81/3 | fast=30,slow=120: -2.4%/-0.45/5 | fast=100,slow=300: +2.5%/0.84/1
+    chosen [fast=100,slow=300] -> OOS   +1.5%  Sharpe 0.62  DD -2.6%  1 trades
+  fold 9  train 2020-01-04 -> 2021-07-03   test 2021-07-04 -> 2022-01-03
+    fast=50,slow=200: +0.1%/0.05/1 | fast=30,slow=120: +2.5%/0.59/2 | fast=100,slow=300: +1.0%/0.36/1
+    chosen [fast=30,slow=120] -> OOS   -1.2%  Sharpe -0.63  DD -3.1%  2 trades
+  fold 10  train 2020-07-04 -> 2022-01-03   test 2022-01-04 -> 2022-07-03
+    fast=50,slow=200: +0.1%/0.05/1 | fast=30,slow=120: +1.6%/0.36/4 | fast=100,slow=300: +1.0%/0.36/1
+    chosen [fast=30,slow=120] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 11  train 2021-01-04 -> 2022-07-03   test 2022-07-04 -> 2023-01-03
+    fast=50,slow=200: +0.0%/0.00/0 | fast=30,slow=120: +2.8%/0.69/2 | fast=100,slow=300: +1.0%/0.36/1
+    chosen [fast=30,slow=120] -> OOS   -2.8%  Sharpe -1.95  DD -3.0%  1 trades
+  fold 12  train 2021-07-04 -> 2023-01-03   test 2023-01-04 -> 2023-07-03
+    fast=50,slow=200: +0.0%/0.00/0 | fast=30,slow=120: +0.9%/0.22/3 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=30,slow=120] -> OOS   -3.8%  Sharpe -1.59  DD -3.8%  2 trades
+  fold 13  train 2022-01-04 -> 2023-07-03   test 2023-07-04 -> 2024-01-03
+    fast=50,slow=200: -2.0%/-1.13/1 | fast=30,slow=120: -4.4%/-1.36/3 | fast=100,slow=300: +0.0%/0.00/0
+    chosen [fast=100,slow=300] -> OOS   +0.3%  Sharpe 0.12  DD -3.2%  1 trades
+  fold 14  train 2022-07-04 -> 2024-01-03   test 2024-01-04 -> 2024-07-03
+    fast=50,slow=200: +0.2%/0.08/2 | fast=30,slow=120: -5.2%/-1.37/4 | fast=100,slow=300: +0.2%/0.07/1
+    chosen [fast=50,slow=200] -> OOS   +6.0%  Sharpe 1.71  DD -1.8%  2 trades
+  fold 15  train 2023-01-04 -> 2024-07-03   test 2024-07-04 -> 2025-01-03
+    fast=50,slow=200: +4.2%/0.80/4 | fast=30,slow=120: -3.5%/-0.59/6 | fast=100,slow=300: -1.2%/-0.36/2
+    chosen [fast=50,slow=200] -> OOS   -1.9%  Sharpe -1.30  DD -2.4%  2 trades
+  fold 16  train 2023-07-04 -> 2025-01-03   test 2025-01-04 -> 2025-07-03
+    fast=50,slow=200: +3.7%/0.70/5 | fast=30,slow=120: -1.2%/-0.17/6 | fast=100,slow=300: -1.2%/-0.36/2
+    chosen [fast=50,slow=200] -> OOS   -1.8%  Sharpe -0.77  DD -3.1%  1 trades
+  fold 17  train 2024-01-04 -> 2025-07-03   test 2025-07-04 -> 2026-01-03
+    fast=50,slow=200: +2.5%/0.38/5 | fast=30,slow=120: -3.2%/-0.30/6 | fast=100,slow=300: -6.8%/-1.01/3
+    chosen [fast=50,slow=200] -> OOS   +0.0%  Sharpe 0.00  DD 0.0%  0 trades
+  fold 18  train 2024-07-04 -> 2026-01-03   test 2026-01-04 -> 2026-07-03
+    fast=50,slow=200: -0.2%/-0.00/3 | fast=30,slow=120: -1.9%/-0.20/3 | fast=100,slow=300: -5.5%/-0.82/2
+    chosen [fast=50,slow=200] -> OOS   +0.1%  Sharpe 0.06  DD -3.8%  1 trades
+
+STITCHED OUT-OF-SAMPLE (params always chosen on prior data only):
+  Total return   -10.4%   CAGR   -1.2%   max DD -17.1%
+  Sharpe -0.28   Sortino -0.38   Calmar -0.07
+  Closed trades 18   win rate 39%   avg -0.20R
+  Monthly return distribution (109 months):
+    positive months:           9.2%
+    mean / median:           -0.10% / 0.00%
+    std dev:                  0.98%
+    best / worst:             4.02% / -3.77%
+
+BENCHMARK -- spec defaults [fast=50,slow=200] held fixed over the same span:
+  Total return    -9.2%   CAGR   -1.1%   Sharpe -0.54   max DD -11.8%   trades 6   [CIRCUIT BREAKER]
+

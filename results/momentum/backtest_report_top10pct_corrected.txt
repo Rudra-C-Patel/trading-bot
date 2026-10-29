@@ -1,0 +1,58 @@
+================================================================
+MORGAN TRADEZ BACKTEST REPORT
+Period: 2020-01-01 -> 2024-12-31   Starting capital: $100,000
+================================================================
+Final equity:        $        96,420
+Total return:                 -3.6%
+CAGR:                         -0.7%
+Max drawdown:                -28.0%
+Sharpe (daily, rf=0):          0.03
+Sortino (rf=0):                0.04
+Calmar (CAGR/maxDD):          -0.03
+
+Monthly return distribution (60 months):
+  positive months:          23.3%
+  mean / median:           -0.00% / 0.00%
+  std dev:                  3.45%
+  best / worst:            12.76% / -16.34%
+
+Annual returns:
+  2020:     2.4%   (year-end equity $102,408)
+  2021:   -11.0%   (year-end equity $91,188)
+  2022:     2.8%   (year-end equity $93,772)
+  2023:     0.3%   (year-end equity $94,020)
+  2024:     2.6%   (year-end equity $96,420)
+
+Round-trip trades:           43
+Win rate:                    32.6%
+Average R multiple:          -0.04R
+Best / worst R:        8.71R / -13.66R
+Avg winner:                   3.43R
+Avg loser:                   -1.71R
+
+Exit reasons (final exits):
+  stop               29
+  sma_trail          9
+  trail_stop         5
+
+Trades by entry year:
+  year   trades  win rate   avg R  total R
+  2020       12     25.0%   -0.11     -1.3
+  2021        7     42.9%   -0.93     -6.5
+  2022       12     33.3%    0.25      3.0
+  2023        5     20.0%    0.15      0.8
+  2024        7     42.9%    0.36      2.5
+
+SURVIVORSHIP-BIAS ADJUSTMENT (universe = today's listings only):
+  Raw CAGR -0.7%; studies estimate survivor-only backtests
+  overstate annual returns by 1-4 percentage points, so a
+  defensible expectation is roughly -4.7% to -1.7% CAGR.
+  Point-in-time membership + delisted price data (the real fix)
+  requires a paid feed (e.g. Norgate Platinum, ~$787/yr).
+
+CAVEATS: current index membership only (survivorship bias inflates
+results), 0.1% slippage assumption, adjusted Yahoo data, no
+commissions, breakout fills at max(open, trigger). Treat the
+absolute numbers as optimistic; the relative behavior (drawdowns,
+win rate, R distribution) is the honest signal.
+================================================================

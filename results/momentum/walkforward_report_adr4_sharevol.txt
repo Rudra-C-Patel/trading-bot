@@ -1,0 +1,114 @@
+========================================================================
+MORGAN TRADEZ WALK-FORWARD REPORT (RS cutoff selection)
+Period: 2020-01-01 -> 2024-12-31   Capital per window: $100,000
+Folds: 7  (18m train / 6m test, 6m step)   Cutoffs tested: 2%, 5%, 10%, 15%
+Selection rule (fixed in advance): highest train CAGR; ties ->
+higher Sharpe, then more trades, then the earlier cutoff.
+========================================================================
+
+FOLD 1  train 2020-01-01 -> 2021-06-30   test 2021-07-01 -> 2021-12-31
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:    -0.7% / -0.36 /  1
+    top   5%:    -0.6% / -0.06 /  4
+    top  10%:    10.8% /  0.86 / 13  <-- chosen
+    top  15%:     9.7% /  0.64 / 20
+  OUT-OF-SAMPLE (top 10% applied to unseen test window):
+    return   -1.0% (annualized   -2.0%)   max DD  -4.4%
+    Sharpe -0.21   Sortino -0.25   Calmar -0.45
+    trades 1 (win rate 0%, avg -1.02R, 0 force-closed at window end)
+
+FOLD 2  train 2020-07-01 -> 2021-12-31   test 2022-01-01 -> 2022-06-30
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:    -0.7% / -0.36 /  1
+    top   5%:    -2.0% / -0.62 /  3
+    top  10%:     8.1% /  0.70 / 10  <-- chosen
+    top  15%:     7.0% /  0.50 / 17
+  OUT-OF-SAMPLE (top 10% applied to unseen test window):
+    return   -3.0% (annualized   -6.1%)   max DD  -3.0%
+    Sharpe -3.20   Sortino -3.15   Calmar -2.02
+    trades 3 (win rate 0%, avg -1.02R, 0 force-closed at window end)
+
+FOLD 3  train 2021-01-01 -> 2022-06-30   test 2022-07-01 -> 2022-12-31
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:    -0.7% / -0.92 /  1  <-- chosen
+    top   5%:    -2.0% / -1.81 /  3
+    top  10%:    -2.1% / -0.29 /  6
+    top  15%:    -4.0% / -0.35 / 11
+  OUT-OF-SAMPLE (top 2% applied to unseen test window):
+    return   +0.0% (annualized   +0.0%)   max DD   0.0%
+    Sharpe 0.00   Sortino 0.00   Calmar 0.00
+    trades 0 (win rate n/a, avg n/a, 0 force-closed at window end)
+
+FOLD 4  train 2021-07-01 -> 2022-12-31   test 2023-01-01 -> 2023-06-30
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:    -0.7% / -0.92 /  1  <-- chosen
+    top   5%:    -2.0% / -1.81 /  3
+    top  10%:    -1.9% / -0.20 /  5
+    top  15%:    -3.9% / -0.42 /  8
+  OUT-OF-SAMPLE (top 2% applied to unseen test window):
+    return   +0.0% (annualized   +0.0%)   max DD   0.0%
+    Sharpe 0.00   Sortino 0.00   Calmar 0.00
+    trades 0 (win rate n/a, avg n/a, 0 force-closed at window end)
+
+FOLD 5  train 2022-01-01 -> 2023-06-30   test 2023-07-01 -> 2023-12-31
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:    -0.7% / -0.92 /  1  <-- chosen
+    top   5%:    -2.7% / -1.25 /  4
+    top  10%:    -2.6% / -0.35 /  6
+    top  15%:    -4.6% / -0.59 /  9
+  OUT-OF-SAMPLE (top 2% applied to unseen test window):
+    return   +0.0% (annualized   +0.0%)   max DD   0.0%
+    Sharpe 0.00   Sortino 0.00   Calmar 0.00
+    trades 0 (win rate n/a, avg n/a, 0 force-closed at window end)
+
+FOLD 6  train 2022-07-01 -> 2023-12-31   test 2024-01-01 -> 2024-06-30
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:     0.0% /  0.00 /  0
+    top   5%:    14.3% /  1.34 /  3  <-- chosen
+    top  10%:    13.6% /  1.09 /  6
+    top  15%:    11.4% /  0.88 /  9
+  OUT-OF-SAMPLE (top 5% applied to unseen test window):
+    return   +1.2% (annualized   +2.5%)   max DD  -4.4%
+    Sharpe 0.37   Sortino 0.72   Calmar 0.58
+    trades 1 (win rate 100%, avg +1.23R, 0 force-closed at window end)
+
+FOLD 7  train 2023-01-01 -> 2024-06-30   test 2024-07-01 -> 2024-12-31
+  train leaderboard (cutoff: CAGR / Sharpe / trades):
+    top   2%:     0.8% /  0.21 /  1
+    top   5%:    13.2% /  1.14 /  4  <-- chosen
+    top  10%:    11.6% /  1.00 /  6
+    top  15%:     8.5% /  0.72 / 10
+  OUT-OF-SAMPLE (top 5% applied to unseen test window):
+    return   +0.0% (annualized   +0.0%)   max DD   0.0%
+    Sharpe 0.00   Sortino 0.00   Calmar 0.00
+    trades 0 (win rate n/a, avg n/a, 0 force-closed at window end)
+
+------------------------------------------------------------------------
+STITCHED OUT-OF-SAMPLE RESULT (2021-07-01 -> 2024-12-31, every dollar traded on a cutoff chosen from prior data only):
+  Total return:             -2.8%
+  CAGR:                     -0.8%
+  Max drawdown:             -7.3%
+  Sharpe (daily,rf=0):      -0.17
+  Sortino (rf=0):           -0.24
+  Calmar (CAGR/maxDD):      -0.11
+  Closed trades:                5   (win rate 20.0%, avg -0.57R)
+
+  Monthly return distribution (42 months):
+    positive months:           4.8%
+    mean / median:           -0.07% / 0.00%
+    std dev:                  0.74%
+    best / worst:             2.46% / -3.39%
+
+BENCHMARK -- fixed top 10% (the in-sample pick) on the same span:
+  Total return  +41.2%   CAGR  +10.4%   Sharpe 0.92   max DD -8.1%   trades 13
+
+READ THIS BEFORE THE HEADLINE NUMBER:
+  * The walk-forward CAGR above is the defensible estimate of what
+    cutoff-selection-on-past-data would actually have earned. The
+    in-sample 10.5% (2020-2024, top decile) is NOT comparable: it
+    includes the 2020 training-only period and was picked after the
+    fact.
+  * Survivorship bias still applies (today's listings only); knock
+    1-4 points off the CAGR for a defensible band.
+  * Trade counts per fold are tiny; single trades can swing a fold.
+========================================================================

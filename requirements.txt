@@ -10,3 +10,6 @@ lxml==6.1.1
 # Wheel bot (IBKR TWS paper). ib_insync is unmaintained (author died 2024);
 # ib_async is the maintained community fork with the same API.
 ib_async==2.1.0
+# Figure (scripts/plot_walkforward.py) and tests
+matplotlib==3.11.2
+pytest==9.2.0

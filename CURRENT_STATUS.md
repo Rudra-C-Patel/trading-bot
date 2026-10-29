@@ -49,7 +49,7 @@ ceiling + ticker exclusivity across all strategies).
 Two broker backends behind one interface, selected by `WHEEL_BROKER` env
 (default `ibkr`):
 
-- **Alpaca paper** — the verified path. Account PA3W75UVGHFQ, ACTIVE, $100K,
+- **Alpaca paper** — the verified path. Alpaca paper account, ACTIVE, $100K,
   `options_trading_level=3` (wheel needs 1+). Raw REST, no SDK; free `iex`
   stock feed + `indicative` options feed (greeks included). Verified
   end-to-end read-only 2026-07-18 during market hours.

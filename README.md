@@ -20,7 +20,9 @@ Mechanical momentum-breakout rules (buy the strongest stocks when they
 break out of an orderly pullback, risk 1% per trade) produced **+10.5%
 CAGR, Sharpe 0.90, 26 trades** on 2020–2024 once one parameter was set to
 "top 10% by relative strength." That value was chosen *after* the
-literal spec (top 2%) had failed on the same data.
+literal spec (top 2%) had failed on the same data. (That run also had
+two filter bugs. With the filters corrected, the same full-period
+backtest earns −0.7% CAGR; see Results.)
 
 **Does choosing that parameter on past data keep working on data the
 choice never saw, or was 10.5% an artifact of in-sample selection?**
@@ -101,20 +103,30 @@ OOS equity curve, and the trade log). Fold-by-fold narrative:
 
 | | Span | Total return | CAGR | Sharpe | Max DD | Trades |
 |---|---|---|---|---|---|---|
-| In-sample: top 10% picked after the fact (pre-fix filters)¹ | 2020–2024 | +64.5% | +10.5% | 0.90 | −12.3% | 26 |
+| In-sample: top 10% picked after the fact, **buggy filters**¹ | 2020–2024 | +64.5% | +10.5% | 0.90 | −12.3% | 26 |
+| In-sample: top 10% picked after the fact, **corrected filters**² | 2020–2024 | −3.6% | −0.7% | 0.03 | −28.0% | 43 |
 | Fixed top 10%, OOS span (still a hindsight pick) | 2021-07 → 2024-12 | +4.7% | +1.3% | 0.17 | −15.9% | 25 |
 | **Walk-forward OOS (cutoff chosen on past data only)** | 2021-07 → 2024-12 | **−13.1%** | **−3.9%** | **−0.65** | **−15.5%** | **13** |
 
 ¹ `backtest_report_top10pct.txt`. Produced before two filter bugs were
 fixed (ADR > 4 instead of the spec's > 5; a 1M-share volume floor instead
-of $3.5M dollar volume). The other rows use the corrected filters
+of $3.5M dollar volume).
+² `backtest_report_top10pct_corrected.txt`. A like-for-like re-run of the
+first row with the filters fixed, on the same price cache the
+walk-forward used: 32.6% win rate, average −0.04R. A sensitivity re-run
+on prices downloaded fresh in October 2026 (5,321 tickers) gave +1.8%
+CAGR, Sharpe 0.20, max DD −22.1%, 36 trades
+(`backtest_report_top10pct_corrected_fresh5321.txt`). Either way, the
+result is near zero.
+
+The last two rows also use the corrected filters
 (`walkforward_report.txt`). The 13 OOS trades had a 15.4% win rate and
 averaged −1.07R.
 
 **How overfitting was exposed:**
 1. **Unstable selection.** The "best" cutoff jumped 15 → 2 → 2 → 10 → 2 → 15 → 5 across folds. A real edge would keep pointing to the same region.
 2. **Train performance didn't predict test performance.** Every fold with a positive train CAGR lost money or was flat out of sample. Fold 6's best training result (+9.5%) was followed by −0.8%.
-3. **The 10.5% was partly a bug artifact.** With the source-accurate filters, even the hindsight top-10% pick fell to +1.3% CAGR on the OOS span. Under the original buggy filters the same walk-forward gave −0.8% CAGR against a +10.4% hindsight benchmark (`walkforward_report_adr4_sharevol.txt`), so the gap appeared under both filter versions.
+3. **The 10.5% was largely a bug artifact.** With the source-accurate filters, the identical full-period in-sample backtest falls from +10.5% to −0.7% CAGR, and the hindsight top-10% pick earns +1.3% CAGR on the OOS span. Under the original buggy filters the same walk-forward gave −0.8% CAGR against a +10.4% hindsight benchmark (`walkforward_report_adr4_sharevol.txt`), so the gap appeared under both filter versions.
 4. **One pre-registered rescue also failed.** The hypothesis was that losses came from bad market regimes, so entries were gated on SPY > 200-day SMA. Result: −0.9% CAGR, with no positive fold among the seven and an average trade of −0.61R (`walkforward_report_spy200.txt`). The gate lost less only because it traded less; the hindsight top-10% benchmark fell to +0.2% CAGR.
 
 ## Decision
@@ -138,7 +150,7 @@ section of `WALKFORWARD_RESULTS.md`). None are enabled.
 - **Small samples.** Train windows held 0–28 trades and test windows 0–4. Ranking cutoffs by train CAGR at these counts is partly ranking noise. The walk-forward rejects this selection process; it doesn't prove that no fixed cutoff could ever work.
 - **One market period.** 2020–2024 covers a crash, a bull run, a bear market, and a recovery, but it is still one sequence of regimes.
 - **Fill model.** Daily bars only, fixed slippage, no commissions, and the two optimistic leaks noted under Validation.
-- **Adjusted Yahoo data** may differ from what was tradable at the time.
+- **Adjusted Yahoo data** may differ from what was tradable at the time. Results also depend on the data snapshot: the corrected in-sample backtest moved from −0.7% to +1.8% CAGR between the July 2026 and October 2026 downloads.
 
 ## How to run
 
@@ -154,9 +166,10 @@ python scripts/plot_walkforward.py     # rebuild the figure from results/
 
 # Re-run the experiments (the first run downloads ~5,300 tickers from
 # Yahoo, roughly 20-40 min, then caches them in data/; outputs go to data/)
-python backtest.py --top-pct 0.10      # in-sample full-period backtest
+python backtest.py --top-pct 0.10      # in-sample full-period backtest (today's universe)
 python walkforward.py                  # the walk-forward above
 python walkforward.py --spy-filter     # SPY > 200-SMA regime-gate variant
+python scripts/run_insample_backtest.py  # in-sample backtest pinned to the walk-forward's price cache
 ```
 
 `results/` is a frozen copy of the outputs these numbers come from.

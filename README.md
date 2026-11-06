@@ -1,5 +1,10 @@
 # Does a momentum-breakout edge survive out-of-sample?
 
+[![CI](https://github.com/Rudra-C-Patel/trading-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/Rudra-C-Patel/trading-bot/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
+![Paper trading only](https://img.shields.io/badge/capital_risked-none-lightgrey)
+
 A walk-forward test of a rules-based momentum strategy on US equities,
 2020–2024. **Result: the in-sample edge did not survive validation. The
 strategy was invalidated and no capital was ever risked.** The project is
@@ -56,6 +61,23 @@ was used to make. Walk-forward picks the parameter using past data
 only, trades it on the next unseen window, and repeats. The stitched
 test windows estimate what the *selection process* would have earned in
 real time, which is the number that matters before risking money.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U["NASDAQ Trader symbol directory<br/>5,309 symbols"] --> L
+    Y["Yahoo Finance via yfinance<br/>daily adjusted OHLCV"] --> L
+    L["backtest.load_price_data<br/>cache in data/ (git-ignored)"] --> P["precompute<br/>trailing indicators + RS ranks"]
+    P --> S["strategy.py<br/>one rule set, shared by every engine"]
+    S --> B["backtest.py<br/>full-period in-sample"]
+    S --> W["walkforward.py<br/>7 folds: 18m train → pick cutoff → 6m unseen test"]
+    S --> SC["scanner.py + paper_trader.py"]
+    B --> R[("results/<br/>frozen reports, fold CSVs,<br/>OOS equity, trade log")]
+    W --> R
+    R --> F["scripts/plot_walkforward.py<br/>figure above"]
+    SC --> RM["risk_manager.py<br/>5% combined open-risk cap"] --> A["alpaca_broker.py<br/>refuses any non-paper host"]
+```
 
 ## Validation
 
@@ -152,6 +174,14 @@ section of `WALKFORWARD_RESULTS.md`). None are enabled.
 - **Fill model.** Daily bars only, fixed slippage, no commissions, and the two optimistic leaks noted under Validation.
 - **Adjusted Yahoo data** may differ from what was tradable at the time. Results also depend on the data snapshot: the corrected in-sample backtest moved from −0.7% to +1.8% CAGR between the July 2026 and October 2026 downloads.
 
+## What I learned
+
+- **A backtest can only confirm the choice it was used to make.** The +10.5% came from picking the cutoff after seeing the data. Walk-forward, where the cutoff is chosen on past data only, is the number that predicts real-time results, and here it was −3.9%.
+- **Check the filters before trusting the edge.** Two filter bugs (ADR > 4 instead of > 5, and a share-volume floor instead of dollar volume) produced most of the in-sample return. Re-running like-for-like against the written spec turned +10.5% into −0.7%.
+- **Write the selection rule down before the test windows run, and report every fold.** That includes zero-trade folds and the rescue attempt that failed. Otherwise the validation becomes another search over parameters.
+- **Rule out the boring explanations.** A zero-cost re-run still lost money, so the failure wasn't transaction costs. Known optimistic leaks only strengthen a negative result.
+- **Stopping is a result.** Testing more variants on the same 2020–2024 data would have been a multiple-comparisons search, so the strategy was parked and no capital was risked.
+
 ## How to run
 
 Requires Python 3.11.
@@ -161,7 +191,7 @@ git clone https://github.com/Rudra-C-Patel/trading-bot.git && cd trading-bot
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python -m pytest -q tests              # 35 unit tests
+python -m pytest -q tests              # 35 unit tests (also run by CI)
 python scripts/plot_walkforward.py     # rebuild the figure from results/
 
 # Re-run the experiments (the first run downloads ~5,300 tickers from
